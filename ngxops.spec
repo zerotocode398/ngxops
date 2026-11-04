@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 
 ROOT = Path(SPECPATH)
@@ -14,15 +14,20 @@ from build_target import target_name
 
 
 TARGET_NAME = target_name()
+PSUTIL_DATAS, PSUTIL_BINARIES, PSUTIL_HIDDENIMPORTS = collect_all("psutil")
 analysis = Analysis(
     [str(ROOT / "ngxops" / "__main__.py")],
     pathex=[str(ROOT)],
-    binaries=[],
+    binaries=PSUTIL_BINARIES,
     datas=[
         (str(ROOT / "templates"), "templates"),
         (str(ROOT / "static"), "static"),
-    ],
-    hiddenimports=collect_submodules("paramiko") + ["ngxops.asgi"],
+    ] + PSUTIL_DATAS,
+    hiddenimports=(
+        collect_submodules("paramiko")
+        + ["ngxops.asgi", "ngxops.service_manager"]
+        + PSUTIL_HIDDENIMPORTS
+    ),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

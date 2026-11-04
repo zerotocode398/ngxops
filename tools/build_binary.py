@@ -35,6 +35,18 @@ def ensure_shared_python_library(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def ensure_psutil_available(parser: argparse.ArgumentParser) -> None:
+    """检查当前构建环境是否能导入后台服务管理依赖。"""
+    try:
+        __import__("psutil")
+    except (ImportError, OSError):
+        parser.error(
+            "当前构建环境无法导入 psutil，后台 start/stop/status 命令无法打包。"
+            "请在构建虚拟环境中运行 python -m pip install -r requirements.txt。"
+            "当前解释器: {}".format(sys.executable)
+        )
+
+
 def main() -> int:
     """显示构建目标或调用 PyInstaller 生成发行文件。"""
     root_dir = Path(__file__).resolve().parent.parent
@@ -59,6 +71,7 @@ def main() -> int:
 
     ensure_ctypes_available(parser)
     ensure_shared_python_library(parser)
+    ensure_psutil_available(parser)
 
     command = [
         sys.executable,
