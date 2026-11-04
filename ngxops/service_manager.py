@@ -40,6 +40,8 @@ def start_service(settings: Settings, host: str, port: int, log_level: str) -> i
         command = _managed_command(token, host, port, log_level)
         environment = os.environ.copy()
         environment["NGXOPS_HOME"] = str(settings.data_dir)
+        if is_frozen():
+            environment["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
         process = subprocess.Popen(
             command,
             cwd=str(_working_directory(settings)),
