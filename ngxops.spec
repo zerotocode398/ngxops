@@ -22,7 +22,7 @@ analysis = Analysis(
         (str(ROOT / "templates"), "templates"),
         (str(ROOT / "static"), "static"),
     ],
-    hiddenimports=collect_submodules("paramiko"),
+    hiddenimports=collect_submodules("paramiko") + ["ngxops.asgi"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -3,9 +3,36 @@
 import argparse
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 
 from build_target import target_filename
+
+
+def ensure_ctypes_available(parser: argparse.ArgumentParser) -> None:
+    """检查当前 Python 是否包含 PyInstaller 所需的 ctypes 扩展。"""
+    try:
+        __import__("_ctypes")
+    except ImportError:
+        parser.error(
+            "当前 Python 缺少或无法加载 _ctypes，PyInstaller 无法启动。"
+            "请先安装 libffi 开发文件（Debian/Ubuntu: libffi-dev；"
+            "RHEL 系: libffi-devel），再重新安装或编译 Python 并重建虚拟环境。"
+            "当前解释器: {}".format(sys.executable)
+        )
+
+
+def ensure_shared_python_library(parser: argparse.ArgumentParser) -> None:
+    """检查 Linux 构建解释器是否启用了 Python 共享库。"""
+    if not sys.platform.startswith("linux"):
+        return
+    if sysconfig.get_config_var("Py_ENABLE_SHARED") == 1:
+        return
+    parser.error(
+        "当前 Linux Python 未启用共享库，PyInstaller 无法打包。"
+        "若从源码编译 Python，请使用 --enable-shared 重新编译并重建虚拟环境。"
+        "当前解释器: {}".format(sys.executable)
+    )
 
 
 def main() -> int:
@@ -29,6 +56,9 @@ def main() -> int:
     if arguments.print_target:
         print(output_name)
         return 0
+
+    ensure_ctypes_available(parser)
+    ensure_shared_python_library(parser)
 
     command = [
         sys.executable,

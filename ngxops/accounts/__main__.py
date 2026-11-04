@@ -22,9 +22,11 @@ def main() -> int:
     parser.add_argument("username", help="Login username")
     arguments = parser.parse_args()
     settings = get_settings()
-    configure_logging(settings.data_dir, settings.log_level, "ngxops-cli.log")
+    configure_logging(settings.data_dir, settings.log_level)
     if not settings.database_path.is_file():
-        parser.error("Database not found. Run 'python -m ngxops.database upgrade' first.")
+        parser.error(
+            "Database not found. Run 'python -m ngxops.database upgrade' first."
+        )
 
     password = getpass.getpass("Admin password: ")
     confirmation = getpass.getpass("Confirm admin password: ")
@@ -48,7 +50,10 @@ def main() -> int:
             exc,
             "action=create_admin username={}".format(arguments.username),
         )
-        parser.error("Could not create the administrator. See the CLI log for details.")
+        parser.error(
+            "Could not create the administrator. Review logs/ngxops.log "
+            "for details."
+        )
     finally:
         database.engine.dispose()
 

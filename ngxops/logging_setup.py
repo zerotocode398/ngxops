@@ -96,15 +96,11 @@ class RedactingFormatter(logging.Formatter):
         return _SENSITIVE_VALUE_PATTERN.sub(r"\1\2[REDACTED]", rendered)
 
 
-def configure_logging(
-    data_dir: Path,
-    log_level: str,
-    log_name: str = "ngxops.log",
-) -> Path:
-    """配置根记录器并返回本次使用的日志文件路径。"""
+def configure_logging(data_dir: Path, log_level: str) -> Path:
+    """配置根记录器并将所有进程日志写入统一文件。"""
     log_dir = data_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / log_name
+    log_path = log_dir / "ngxops.log"
     root_logger = logging.getLogger()
     level = 5 if log_level.lower() == "trace" else getattr(
         logging,

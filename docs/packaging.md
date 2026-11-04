@@ -13,6 +13,8 @@ python tools/build_binary.py --print-target
 python tools/build_binary.py
 ```
 
+构建解释器必须包含 `_ctypes` 扩展，并提供 Python 共享库。若 Python 是从源码编译的，编译前需安装 libffi 开发文件，例如 Debian/Ubuntu 安装 `libffi-dev`，RHEL 系安装 `libffi-devel`；配置 Python 时还需启用 `--enable-shared`。随后重新编译或安装 Python，并使用新解释器重建虚拟环境。只安装系统开发包不会补齐已经编译好的 Python。
+
 构建产物位于 `dist/`：
 
 | Linux 架构 | 文件名 |
@@ -24,7 +26,7 @@ python tools/build_binary.py
 
 ## CLI 命令
 
-源码和单文件程序共用同一套 CLI。查看帮助：
+源码和单文件程序共用同一套 CLI。帮助中的程序名在源码运行时显示为 `python -m ngxops`，在单文件程序中显示为当前可执行文件名（例如 `ngxops-linux-amd64`）。查看帮助：
 
 ```bash
 python -m ngxops --help
@@ -52,6 +54,8 @@ python -m ngxops start --help
 ```
 
 服务选项包括 `--host`、`--port` 和 `--log-level`。前台 `serve` 使用 `--reload [true|false]` 控制自动重载；省略参数时沿用配置默认值，单独传 `--reload` 时开启，传 `--reload false` 时关闭。后台 `start` 不启用自动重载。CLI 支持 `--home PATH`，必须放在子命令之前。
+
+`serve` 直接占用当前终端，适合前台运行或由 systemd 等进程管理器托管；`start` 会脱离终端在后台启动服务，并等待 `/health` 检查通过。后台服务使用同一数据目录下的 `run/` 控制记录，之后通过 `status` 查看状态、用 `stop` 停止。
 
 ## 初始化与运行
 
@@ -85,6 +89,6 @@ ARM64 主机将可执行文件名替换为 `ngxops-linux-arm64`。`admin create`
 - `.secret_key`：会话与 CSRF Cookie 签名密钥。
 - `.fernet_key`：SSH 凭证加密密钥。
 - `nginx_packages/`：上传的源码包和模块包。
-- `logs/ngxops.log`、`logs/ngxops-cli.log`：服务及 CLI 运行日志，按大小轮转。
+- `logs/ngxops.log`：服务及 CLI 运行日志，按大小轮转。
 
 数据库、密钥和包目录须一起备份。部署新版本前停止服务，备份后运行 `database upgrade`；应用启动不会自动升级数据库。

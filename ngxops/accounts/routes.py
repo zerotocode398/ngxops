@@ -20,6 +20,7 @@ from ngxops.accounts.service import (
     change_password,
     complete_login,
     find_login_session_conflict,
+    login_setup_status,
     read_login_lock_policy,
 )
 from ngxops.audit.service import request_client_ip
@@ -47,6 +48,15 @@ async def login_page(
     """显示登录表单或将已登录用户送回首页。"""
     if user is not None:
         return RedirectResponse("/", status_code=302)
+    setup_status = await run_in_threadpool(
+        login_setup_status, request.app.state.database.session_factory
+    )
+    if setup_status:
+        return _render_login(
+            request,
+            setup_status=setup_status,
+            status_code=503,
+        )
     next_url = _safe_next_url(request.query_params.get("next", ""))
     policy = await run_in_threadpool(
         read_login_lock_policy, request.app.state.database.session_factory
@@ -67,6 +77,15 @@ async def login_page(
 @router.post("/login/", include_in_schema=False)
 async def submit_login(request: Request) -> Response:
     """校验登录表单并按账户状态返回提示或建立会话。"""
+    setup_status = await run_in_threadpool(
+        login_setup_status, request.app.state.database.session_factory
+    )
+    if setup_status:
+        return _render_login(
+            request,
+            setup_status=setup_status,
+            status_code=503,
+        )
     form = await request.form()
     if form.get("confirm_kick") == "1":
         return await _confirm_kick_login(request)
@@ -318,6 +337,7 @@ def _render_login(
     show_conflict: bool = False,
     conflict_ip: str = "",
     conflict_agent: str = "",
+    setup_status: str = "",
     fail_threshold: int = DEFAULT_FAIL_COUNT,
     lock_minutes: int = DEFAULT_LOCK_MINUTES,
     lock_remaining_seconds: int = 0,
@@ -335,6 +355,7 @@ def _render_login(
             "show_conflict": show_conflict,
             "conflict_ip": conflict_ip,
             "conflict_agent": conflict_agent,
+            "setup_status": setup_status,
             "login_lock_threshold": fail_threshold,
             "login_lock_minutes": lock_minutes,
             "lock_remaining_seconds": max(0, int(lock_remaining_seconds)),

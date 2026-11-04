@@ -28,23 +28,16 @@ ngxops 是用于管理 Nginx 多节点运维流程的 Web 平台，提供账户�
 
 
 ## 命令行参数
+
+源码模式使用统一 CLI 查看命令和参数：
+
 ```bash
-usage: run_server.py [-h] [--home HOME] [--host HOST] [--port PORT] [--log-level LOG_LEVEL] [--reload [true|false]]
-
-启动 ngxops Web 服务
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --home HOME           数据存储目录
-  --host HOST           监听地址 (default: 0.0.0.0)
-  --port PORT           监听端口 (default: 11993)
-  --log-level LOG_LEVEL
-                        日志级别 (default: info)
-  --reload [true|false]
-                        自动重载；无参数时开启，未指定时配置默认值为开启。
-
-数据目录默认为 NGXOPS_HOME；未设置时使用当前工作目录（./）。可用 --home PATH 覆盖。
+python -m ngxops --help
+python -m ngxops serve --help
+python -m ngxops start --help
 ```
+
+`serve` 在当前终端运行服务，适合手动前台运行或交给 systemd 管理；`start` 脱离终端在后台启动受管服务，并等待健康检查通过，可用 `status` 查看、`stop` 停止。二进制帮助中的程序名会显示实际可执行文件名，例如 `ngxops-linux-amd64`。
 
 ## 源码部署
 
@@ -93,14 +86,15 @@ python -m ngxops --home /opt/app/ngxops start
 
 ```bash
 python3 --version
-python3 -m venv .venv
+python3 -m venv .venv-build
 source .venv-build/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python tools/build_binary.py --print-target
 python tools/build_binary.py
-
 ```
+
+构建 Python 必须包含 `_ctypes` 扩展并启用共享库。若使用源码编译的 Python，先安装 libffi 开发文件（Debian/Ubuntu 为 `libffi-dev`，RHEL 系为 `libffi-devel`），配置时添加 `--enable-shared`，再重新编译或安装 Python 并重建虚拟环境。详见 [Linux 单文件发行与 CLI](docs/packaging.md#构建)。
 
 ### 初始化与启动
 

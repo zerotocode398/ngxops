@@ -17,7 +17,25 @@
         <p>Nginx 集中式管理平台</p>
     </header>
     <div class="login-body">
-        {% if error_type %}
+        {% if setup_status %}
+            <div class="alert alert-warning login-error-alert" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+                {% if setup_status == 'database_uninitialized' %}
+                    <strong>数据库尚未初始化</strong>
+                    <p class="mb-2 mt-2">
+                        登录功能暂不可用。请在服务器上使用与当前服务相同的数据目录，
+                        先执行 <code>database init</code>，再执行 <code>admin create</code>。
+                    </p>
+                {% else %}
+                    <strong>尚未创建管理员</strong>
+                    <p class="mb-2 mt-2">
+                        数据库已初始化，但还没有用户账户。请在服务器上使用与当前服务
+                        相同的数据目录执行 <code>admin create</code>。
+                    </p>
+                {% endif %}
+                <p class="mb-0">完成后刷新此页面。</p>
+            </div>
+        {% elif error_type %}
             <div class="alert {% if error_type == 'account_locked' %}alert-warning{% else %}alert-danger{% endif %} login-error-alert" role="alert" id="loginErrorAlert" data-login-auto-dismiss="{% if error_type == 'account_locked' %}false{% else %}true{% endif %}">
                 {% if error_type == 'account_locked' %}
                     <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
@@ -36,7 +54,7 @@
                 {% endif %}
             </div>
         {% endif %}
-        {% if show_conflict %}
+        {% if not setup_status and show_conflict %}
             <div class="conflict-warning text-center">
                 <i class="bi bi-exclamation-triangle-fill conflict-icon" aria-hidden="true"></i>
                 <h2 class="h6">检测到该账号已在其他地方登录</h2>
@@ -61,7 +79,7 @@
                 <div class="conflict-bar-wrap"><span class="conflict-bar"></span></div>
                 <p id="conflictTimerText">30 秒后未操作将返回登录页</p>
             </div>
-        {% else %}
+        {% elif not setup_status %}
             <form method="post" action="/login/">
                 {% include "includes/csrf_field.html" %}
                 {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}

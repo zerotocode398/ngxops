@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from math import ceil
 from typing import Dict, Optional
 
-from sqlalchemy import case, delete, select, text
+from sqlalchemy import case, delete, inspect, select, text
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -32,6 +32,16 @@ DEFAULT_LOCK_MINUTES = 15
 MAX_LOGIN_NAME_LENGTH = 150
 MAX_LOGIN_IP_LENGTH = 50
 MAX_USER_AGENT_LENGTH = 2048
+
+
+def login_setup_status(session_factory: sessionmaker) -> Optional[str]:
+    """判断登录入口是否缺少数据库结构或首个用户账户。"""
+    with session_scope(session_factory) as db_session:
+        if not inspect(db_session.get_bind()).has_table(User.__tablename__):
+            return "database_uninitialized"
+        if db_session.scalar(select(User.id).limit(1)) is None:
+            return "admin_uninitialized"
+    return None
 
 
 @dataclass(frozen=True)

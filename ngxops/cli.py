@@ -15,7 +15,7 @@ from ngxops.accounts.management import (
     validate_username,
 )
 from ngxops.accounts.passwords import validate_new_password
-from ngxops.config import Settings, get_settings
+from ngxops.config import Settings, get_settings, is_frozen
 from ngxops.cli_format import NonNullDefaultsHelpFormatter, parse_bool_argument
 from ngxops.database.connection import create_database
 from ngxops.database.migration_runner import upgrade_database
@@ -28,14 +28,17 @@ logger = logging.getLogger("ngxops.cli")
 def build_parser() -> argparse.ArgumentParser:
     """创建包含服务、数据库和管理员操作的命令解析器。"""
     settings = get_settings()
+    program_name = (
+        os.path.basename(sys.executable) if is_frozen() else "python -m ngxops"
+    )
     parser = argparse.ArgumentParser(
-        prog="ngxops",
+        prog=program_name,
         description="Nginx multi-node operations platform.",
         formatter_class=NonNullDefaultsHelpFormatter,
         epilog=(
             "Data directory defaults to NGXOPS_HOME or ./ (the current working "
             "directory). Use --home PATH before the command to override it. "
-            "Use 'ngxops COMMAND --help' for command options."
+            "Use '{} COMMAND --help' for command options.".format(program_name)
         ),
     )
     parser.add_argument(
@@ -154,8 +157,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if arguments.home:
         os.environ["NGXOPS_HOME"] = arguments.home
     settings = get_settings()
-    log_name = "ngxops.log" if arguments.command == "serve" else "ngxops-cli.log"
-    configure_logging(settings.data_dir, settings.log_level, log_name)
+    configure_logging(settings.data_dir, settings.log_level)
 
     try:
         return _dispatch(arguments, settings)
@@ -242,7 +244,7 @@ def _run_managed_command(raw_arguments: Sequence[str]) -> int:
     parser.add_argument("--log-level", required=True)
     arguments = parser.parse_args(raw_arguments)
     settings = get_settings()
-    configure_logging(settings.data_dir, settings.log_level, "ngxops.log")
+    configure_logging(settings.data_dir, settings.log_level)
     try:
         from ngxops.service_manager import run_managed_server
 
