@@ -10,8 +10,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
 
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -193,6 +193,21 @@ def _load_session_state(
         return data, None
 
 
+def _load_session_state_if_available(
+    session_factory: sessionmaker,
+    session_key: str,
+) -> Tuple[Optional[Dict[str, Any]], Optional[str], bool]:
+    """读取会话并在会话表尚未初始化时返回空状态。"""
+    try:
+        data, revocation_reason = _load_session_state(session_factory, session_key)
+        return data, revocation_reason, True
+    except OperationalError:
+        with session_scope(session_factory) as db_session:
+            if not inspect(db_session.get_bind()).has_table("ngxops_sessions"):
+                return None, None, False
+        raise
+
+
 def _load_session(
     session_factory: sessionmaker,
     session_key: str,
@@ -312,12 +327,17 @@ class SessionMiddleware(BaseHTTPMiddleware):
             raw_session_key and _is_valid_session_key(raw_session_key)
         )
         session_factory = request.app.state.database.session_factory
+        session_storage_available = True
         try:
             session_data = None
             revocation_reason = None
             if valid_session_key:
-                session_data, revocation_reason = await run_in_threadpool(
-                    _load_session_state,
+                (
+                    session_data,
+                    revocation_reason,
+                    session_storage_available,
+                ) = await run_in_threadpool(
+                    _load_session_state_if_available,
                     session_factory,
                     raw_session_key,
                 )
@@ -344,7 +364,9 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
         try:
             response = await call_next(request)
-            if session.modified or session.deleted:
+            if not session_storage_available:
+                session_key = None
+            elif session.modified or session.deleted:
                 if session.deleted and not session.data:
                     await run_in_threadpool(_delete_session, session_factory, session)
                     session_key = None
