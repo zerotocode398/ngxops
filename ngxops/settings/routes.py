@@ -212,6 +212,7 @@ def update_settings_group(
         current_values = {row.key: row.value for row in current_rows}
         presets = preset_by_key()
         changes = []
+        probe_interval_change = None
         for key in saved:
             preset = presets.get(key, {})
             label = preset.get("label", key)
@@ -223,19 +224,33 @@ def update_settings_group(
             if unit:
                 old_display = "{} {}".format(old_display, unit)
                 new_display = "{} {}".format(new_display, unit)
-            changes.append(
+            change = (
                 "{}（{}），由 {} 调整为 {}".format(
                     label, key, old_display, new_display
                 )
             )
-        write_audit_log(
-            session,
-            "系统设置",
-            "更新系统设置",
-            "分组「{}」修改 {} 项：{}".format(
-                payload.group, len(saved), "；".join(changes)
-            ),
-        )
+            if key == "node.status_probe_interval_seconds":
+                probe_interval_change = change
+            else:
+                changes.append(change)
+        if probe_interval_change is not None:
+            write_audit_log(
+                session,
+                "系统设置",
+                "更新节点状态巡检间隔",
+                "每台节点两次后台状态巡检的最短间隔：{}".format(
+                    probe_interval_change
+                ),
+            )
+        if changes:
+            write_audit_log(
+                session,
+                "系统设置",
+                "更新系统设置",
+                "分组「{}」修改 {} 项：{}".format(
+                    payload.group, len(changes), "；".join(changes)
+                ),
+            )
     session.commit()
     return SettingsUpdateResponse(
         message="设置已保存" if saved else "设置没有变化",

@@ -9,7 +9,7 @@
         <div class="settings-nav-title">设置分组</div>
         {% for name in group_names %}
         <a class="settings-nav-item{% if name == active_group %} active{% endif %}"
-           href="/settings/?group={{ name|urlencode }}" data-settings-group="{{ name }}">
+           href="/settings/?group={{ name|urlencode }}" data-settings-group="{{ name }}"{% if name == active_group %} aria-current="page"{% endif %}>
             <span>{{ name }}</span><span class="text-muted small">{{ groups[name]|length }}</span>
         </a>
         {% endfor %}
@@ -52,25 +52,65 @@
     "use strict";
     var endpoint = "/api/settings/group";
     var activeGroup = {{ active_group|tojson }};
+    var defaultGroup = activeGroup;
     var initialValues = {};
     $("[data-setting-key]").each(function () { initialValues[this.name] = this.value; });
+    function fieldsFor(group) {
+        return $("[data-setting-key]").filter(function () {
+            return $(this).closest("[data-settings-panel]").attr("data-settings-panel") === group;
+        });
+    }
     function isDirty() {
-        return $("[data-settings-panel='" + activeGroup + "'] [data-setting-key]").toArray().some(function (input) {
+        return fieldsFor(activeGroup).toArray().some(function (input) {
             return input.value !== initialValues[input.name];
         });
     }
+    function activateGroup(group) {
+        var panelExists = $("[data-settings-panel]").toArray().some(function (panel) {
+            return panel.getAttribute("data-settings-panel") === group;
+        });
+        if (!panelExists) return false;
+        activeGroup = group;
+        $("[data-settings-group]").each(function () {
+            var active = this.getAttribute("data-settings-group") === group;
+            this.classList.toggle("active", active);
+            if (active) this.setAttribute("aria-current", "page");
+            else this.removeAttribute("aria-current");
+        });
+        $("[data-settings-panel]").each(function () {
+            this.classList.toggle("d-none", this.getAttribute("data-settings-panel") !== group);
+        });
+        return true;
+    }
+    function groupFromLocation() {
+        return new URL(window.location.href).searchParams.get("group") || defaultGroup;
+    }
     $(document).on("click", "[data-settings-group]", function (event) {
-        if (isDirty() && !window.confirm("当前分组有未保存的修改，确定离开吗？")) event.preventDefault();
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        var group = this.getAttribute("data-settings-group");
+        if (group === activeGroup) return;
+        if (isDirty() && !window.confirm("当前分组有未保存的修改，仍要切换分组吗？")) return;
+        if (activateGroup(group)) window.history.pushState({ settingsGroup: group }, "", this.href);
+    });
+    window.addEventListener("popstate", function () {
+        var group = groupFromLocation();
+        if (group === activeGroup) return;
+        if (isDirty() && !window.confirm("当前分组有未保存的修改，仍要切换分组吗？")) {
+            window.history.forward();
+            return;
+        }
+        activateGroup(group);
     });
     $(document).on("click", "[data-save-settings]", function () {
         var group = this.getAttribute("data-save-settings");
         var values = {};
-        $("[data-settings-panel='" + group + "'] [data-setting-key]").each(function () {
+        fieldsFor(group).each(function () {
             values[this.name] = this.value;
         });
         $.ajax({ url: endpoint, method: "POST", contentType: "application/json", data: JSON.stringify({ group: group, values: values }) })
             .done(function (response) {
-                $("[data-settings-panel='" + group + "'] [data-setting-key]").each(function () {
+                fieldsFor(group).each(function () {
                     this.setAttribute("data-initial", this.value);
                     initialValues[this.name] = this.value;
                 });

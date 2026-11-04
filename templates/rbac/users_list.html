@@ -34,7 +34,10 @@
                                 {% include "includes/csrf_field.html" %}
                                 <button class="btn btn-outline-secondary btn-sm" type="submit" title="{% if row.login_enabled %}停用{% else %}启用{% endif %}用户" aria-label="{% if row.login_enabled %}停用{% else %}启用{% endif %}用户 {{ row.user.username }}"><i class="bi {% if row.login_enabled %}bi-person-lock{% else %}bi-person-check{% endif %}" aria-hidden="true"></i></button>
                             </form>
-                            <a class="btn btn-outline-danger btn-sm" href="/users/{{ row.user.id }}/delete/" title="删除用户" aria-label="删除用户 {{ row.user.username }}"><i class="bi bi-trash" aria-hidden="true"></i></a>
+                            <form method="post" action="/users/{{ row.user.id }}/delete/" class="d-inline" data-confirm="确定删除用户 {{ row.user.username }} 吗？此操作不可恢复。" data-confirm-title="删除用户">
+                                {% include "includes/csrf_field.html" %}
+                                <button class="btn btn-outline-danger btn-sm" type="submit" title="删除用户" aria-label="删除用户 {{ row.user.username }}"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                            </form>
                             {% endif %}
                         </td>
                     </tr>

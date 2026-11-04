@@ -10,7 +10,11 @@ from sqlalchemy import case, delete, inspect, select, text
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session, sessionmaker
 
-from ngxops.audit.service import prepare_audit_session, write_audit_log
+from ngxops.audit.service import (
+    log_business_action,
+    prepare_audit_session,
+    write_audit_log,
+)
 from ngxops.accounts.models import LoginFailureState, LoginLog, User
 from ngxops.accounts.passwords import (
     burn_unknown_user_password_check,
@@ -112,6 +116,20 @@ def authenticate_and_log(
                 policy.lock_minutes,
             )
             db_session.commit()
+            if result.status != "success":
+                failure_details = {
+                    "invalid": "用户名或密码错误",
+                    "inactive": "用户已停用",
+                    "locked": "账号已锁定",
+                }
+                log_business_action(
+                    username=" ".join(username.split())[:150] or "-",
+                    module="账户管理",
+                    action="登录失败",
+                    result="failed",
+                    ip=" ".join(ip.split())[:50] or "-",
+                    detail=failure_details.get(result.status, "登录校验失败"),
+                )
             return result
         except Exception:
             db_session.rollback()
