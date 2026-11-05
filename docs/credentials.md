@@ -16,7 +16,7 @@
 - 页面列表、凭证选择 API、密钥解密 API 使用 `credentials.read`；创建、编辑和删除分别使用 `create/update/delete`；开关使用 `credentials.enable`。
 - `(name, created_by)` 唯一。密码/私钥列为空或 Fernet 密文；密钥文件为数据目录 `.fernet_key`，不可与数据库分离备份。
 - 创建和修改校验名称、用户名、字段长度、认证材料及未加密私钥格式。保存凭证明文只在请求内存和授权解密响应中短暂出现。
-- 选项 API `GET /api/credentials` 仅返回启用凭证的非敏感摘要；解密 API `GET /api/credentials/{id}/secret?field=password|private_key` 需要 `credentials.read` 并禁止缓存。
+- 选项 API `GET /api/credentials` 仅返回启用凭证的非敏感摘要；解密 API `GET /api/credentials/{credential_id}/secret?field=password|private_key` 需要 `credentials.read` 并禁止缓存。
 - 超级管理员可从列表按勾选或当前筛选范围下载明文 xlsx；持有 `credentials.create` 权限的用户可批量导入。工作簿内重名或与当前用户已有凭证重名都会拒绝，并提示重复名称及来源；其他校验提示具体字段和修正要求，不回显密码或私钥。任一行无效时整批不写入，限制 `.xlsx` 和 8 MiB。导入弹窗只显示去重后的具体错误，不显示行号；API 响应保留行号元数据。关闭导入弹窗会清空错误并重置文件。
 - 凭证明文导入/导出只在请求内存中解密或加密；审计只写数量、范围和最多 20 个名称，不记录密码或私钥。导出响应设置 `Cache-Control: no-store`。
 - 批量删除要求所有选中凭证仍存在后才在单个事务中删除，并只写一条汇总审计；关联节点沿数据库外键规则解除凭证关联。
@@ -24,9 +24,9 @@
 
 ## 启停与节点联调
 
-- `POST /api/credentials/{id}/toggle-enable` 需要 `credentials.enable` 与 CSRF。
+- `POST /api/credentials/{credential_id}/toggle-enable` 需要 `credentials.enable` 与 CSRF。
 - 禁用时将活动关联节点置离线；重新启用时只测试未锁定节点。无活动关联节点时直接启用，不创建空任务。
-- 启用任务经 NX-005 执行器运行，`node.batch_max_count` 控制最大并发 worker 数，默认 3；进度可由 `GET /api/credentials/{id}/enable-progress` 轮询。SSH 连接成功后单独执行 Nginx `-v`，SSH 状态和 Nginx 可用状态分开写回；锁定节点不计入连接测试结果。
+- 启用任务由后台任务执行，`node.batch_max_count` 控制最大并发节点数，默认 3；进度可由 `GET /api/credentials/{credential_id}/enable-progress` 读取。SSH 连接成功后单独检测 Nginx 版本，SSH 状态和 Nginx 可用状态分别更新；锁定节点不计入连接测试结果。
 - 有关联节点的启用测试在任务创建后立即显示任务详情链接，完成后提示汇总结果；禁用只更新关联节点离线状态，不创建 SSH 任务。
 - 启用和禁用分别记录“启用凭证「名称」”与“锁定凭证「名称」”审计明细；任务提示中的完整日志链接在新标签页打开，提示显示 3 秒。
 - 凭证启用测试的操作审计摘要显示任务编号和目标摘要；可查看权限范围内的 `#任务ID` 在新标签页打开任务详情。
@@ -36,3 +36,18 @@
 
 - 凭证导出仅限超级管理员；批量导入按 `credentials.create` 门禁，批量删除按独立的 `credentials.delete` 门禁。导入权限不会授予删除能力。私钥支持 RSA、ECDSA 和 Ed25519。
 - 页面通过公共 Jinja 布局、CSRF 字段、RBAC 导航、Toast 和分页组件实现；相关 JSON API 统一位于 `/api/` 并登记 OpenAPI。
+
+## JSON API
+
+| 方法与路径 | 权限 | 用途 |
+|---|---|---|
+| `GET /api/credentials` | `credentials.read` | 返回启用凭证的非敏感字段，供节点选择凭证 |
+| `GET /api/credentials/{credential_id}/nodes` | `credentials.read` | 分页查询凭证关联节点 |
+| `GET /api/credentials/{credential_id}/secret` | `credentials.read` | 读取授权的单个密码或私钥字段；响应禁止缓存 |
+| `POST /api/credentials/{credential_id}/toggle-enable` | `credentials.enable` 与 CSRF | 启用或禁用凭证；启用后异步测试关联节点 |
+| `GET /api/credentials/{credential_id}/enable-progress` | `credentials.read` | 查询最近一次关联节点测试结果 |
+| `GET /api/credentials/import-template` | `credentials.create` | 下载导入模板 |
+| `POST /api/credentials/import` | `credentials.create` 与 CSRF | 校验并批量导入凭证 |
+| `GET /api/credentials/export` | 超级管理员 | 导出明文凭证工作簿；响应禁止缓存 |
+
+凭证新增、编辑、单条删除和批量删除通过 Jinja2 页面表单完成，不另设 JSON API。接口响应模型、状态码和公共错误格式见 [api.md](api.md)。

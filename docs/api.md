@@ -4,6 +4,7 @@
 
 - 页面路由使用 Jinja2；返回 JSON 的接口统一使用 `/api/` 前缀。`GET /health` 是公开的 JSON 探活接口，不检查数据库或远程节点。
 - OpenAPI 文档由应用路由和 Pydantic 模型生成，可从 `/openapi.json`、`/docs` 和 `/redoc` 查看。
+- 浏览器直接打开 `/docs` 可交互查看已公开的 JSON 接口；`/redoc` 提供阅读版文档，`/openapi.json` 提供机器可读定义。Jinja2 页面路由和明确标记为内部的页面轮询接口不会出现在 OpenAPI。
 - 成功响应使用端点声明的响应模型和 HTTP 状态码。错误响应使用 `ApiError`，不会将 Python 异常文本或请求中的原始字段值写入响应。
 - 日期时间使用 ISO 8601 格式；枚举值及字段名保持小写蛇形命名。
 
@@ -29,6 +30,7 @@
 | 404 | 资源不存在，或为避免泄露而隐藏当前用户不可见资源 |
 | 409 | 操作期间资源状态发生并发变化 |
 | 422 | 路径、查询或请求体参数校验失败 |
+| 413 | 上传文件超过接口允许的大小 |
 | 500 | 未预期的服务器错误；响应不包含异常详情 |
 
 HTML 页面继续使用重定向、Jinja2 错误页或页面提示，不受 JSON 错误结构约束。
@@ -107,7 +109,7 @@ HTML 页面继续使用重定向、Jinja2 错误页或页面提示，不受 JSON
 
 用户组成员 GET 支持逗号分隔的用户名/邮箱搜索词，`per_page` 默认为 10、允许 1–100；响应包含总数、页数和当前每页条数。POST 使用 `{ "action": "add" | "remove", "user_ids": [...] }` 对最多 200 个用户执行幂等增删。用户、角色和用户组的其余操作使用 Jinja2 表单页面，并由全局 CSRF 依赖保护。
 
-任务筛选、分页、增量日志游标、可见范围和取消检查点见 [tasks.md](tasks.md)。`GET /api/tasks` 的 `search` 参数按逗号切分，词间 AND，单词在批次号、主机名、IP 和目标配置名中 OR；任务中心日志可包含 `node_id`，用于按目标节点筛选核心操作。专用 Nginx 历史详情按批次读取完整远程日志：升级/回滚和安装使用 `GET /api/tasks/{task_id}` 的 `log_view=upgrade_full` / `install_full`，启停、卸载使用各自模块的任务日志接口。RBAC 管理范围和权限来源见 [rbac.md](rbac.md)。后续功能应在对应模块定义请求/响应模型、摘要、参数约束及会产生的状态码，并引用本文件的公共错误协议。
+任务筛选、分页、增量日志游标、可见范围和取消检查点见 [tasks.md](tasks.md)。`GET /api/tasks` 的 `search` 参数按逗号切分，词间 AND，单词在批次号、主机名、IP 和目标配置名中 OR；任务中心日志可包含 `node_id`，用于按目标节点筛选核心操作。专用 Nginx 历史详情按批次读取完整远程日志：升级/回滚和安装使用 `GET /api/tasks/{task_id}` 的 `log_view=upgrade_full` / `install_full`，启停、卸载使用各自模块的任务日志接口。RBAC 管理范围和权限来源见 [rbac.md](rbac.md)。本表是公开 JSON API 总表；新增或变更接口时，同步更新此表及对应模块文档。
 
 节点探测、系统信息和 Nginx 检测接口返回持久化任务 ID。具备 `nodes.ssh_test` 权限的用户可读取自己创建的对应任务；解锁后自动创建的批量探测任务也允许 `nodes.unlock` 用户读取。`GET /api/tasks/{task_id}` 返回实时进度、日志和结果树。
 
@@ -127,6 +129,6 @@ Nginx 全新安装页面见 [nginx-install.md](nginx-install.md)。configure 预
 
 Nginx 启停页面、历史和操作日志见 [nginx-service.md](nginx-service.md)。节点选择和任务进度使用独立 `nginx_service.read` API；批次创建要求 `nginx_service.operate`，并经过全局 CSRF 校验。
 
-Nginx 卸载页面、历史和日志见 [nginx-uninstall.md](nginx-uninstall.md)。路径预览与批次创建需要 `nginx_uninstall.execute`；节点选择、历史和任务读取需要 `nginx_uninstall.read`。卸载状态、结果树和取消沿用 NX-005 统一任务接口。
+Nginx 卸载页面、历史和日志见 [nginx-uninstall.md](nginx-uninstall.md)。路径预览与批次创建需要 `nginx_uninstall.execute`；节点选择、历史和任务读取需要 `nginx_uninstall.read`。卸载状态、结果树和取消沿用统一任务接口。
 
 系统设置页面、分组校验、实际生效范围和数据保留策略见 [settings.md](settings.md)。读取 API 仅返回当前登记的预置项，保存 API 只接受同一分组的已接线 key。

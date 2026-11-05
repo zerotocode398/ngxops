@@ -17,13 +17,13 @@
 - 锁定会设置 `is_locked=true` 且将 SSH 状态改为 `offline`；重复锁定会跳过，不重复写审计。解锁清除锁、将状态暂置为 `unknown`，并自动创建 SSH/Nginx 探测任务，任务完成后更新 SSH 状态、最近探测时间和 Nginx 版本。启用凭证测试只检查未锁定的活动节点。
 - SSH `status`、Nginx `nginx_available` 和 Nginx 版本分别保存。节点 SSH 探测和凭证关联节点测试中，每次实际 SSH 连接尝试（成功或失败）都会更新 `last_probe_at`；因节点锁定、未配置/不可用凭证而未尝试连接时不更新。Nginx 检测单独记录 `last_nginx_probe_at`；Nginx 命令明确失败会标记不可用且不覆盖 SSH 在线状态，超时或连接异常则记为未知；SSH 连接失败会标记离线。
 - SSH 状态 `unknown` 表示当前没有可用的探测结论，常见于新建或恢复节点、解锁后的探测等待期间、启用凭证后重新测试期间，以及解锁探测时节点没有配置凭证；实际 SSH 连接失败会记录为 `offline`。
-- `ngxops_node_sync_settings` 保存节点资产中的 Nginx 主配置路径，节点表单、配置发现和批量同步共用该值；未配置时按 `config.default_nginx_path` 回退。迁移 v9 的 `ngxops_config_sync_settings` 仅保留历史数据，当前发现/同步不再读取或写入。
+- 节点登记的 Nginx 主配置路径供配置发现和批量同步共用；未配置时使用系统设置中的默认路径。数据库结构与升级规则见 [database.md](database.md)。
 
 ## 自动状态巡检
 
-数据库已迁移出节点表后，应用启动一个进程内巡检器；部署继续遵守单 Uvicorn worker 边界。巡检器只选择未删除、未锁定且关联启用凭证的节点，在独立线程池中执行一次 SSH 连接和 `nginx -v`，不占事件循环、不创建任务中心任务、不重试连接。SSH/Nginx 探测继续复用 NX-022 的状态写回规则。锁定、删除或禁用凭证后，尚未完成的探测结果不会覆盖新的状态；晚于较新观测才返回的旧结果也会被丢弃。
+应用会定期检查未删除、未锁定且关联启用凭证的节点。巡检通过后台线程执行 SSH 和 Nginx 版本探测，不占用 Web 请求，也不在任务中心创建用户任务。锁定节点、删除节点或禁用凭证后，较晚返回的巡检结果不会覆盖更新的状态。
 
-系统设置 `node.status_probe_concurrency` 默认 3、范围 1–10；`node.status_probe_interval_seconds` 默认 60 秒、范围 30–300 秒。并发池最多 10 个 worker；间隔按单节点上一次探测完成时间计算，是最短等待而非整个节点集的完成时限。按近似均匀耗时估算，100 台节点、并发 3、平均每次探测 2 秒时，全量轮询约需 34 批次（约 68 秒），再加每节点 60 秒间隔，实际一轮约 128 秒；队列积压和 SSH 超时会继续延长。配置间隔小于当前探测耗时时不会重复提交该节点，结果写回后才等待间隔再探测。
+系统设置 `node.status_probe_concurrency` 控制同时巡检的节点数，默认 3、范围 1–10；`node.status_probe_interval_seconds` 控制每台节点两次探测之间的最短间隔，默认 60 秒、范围 30–300 秒。完整巡检周期还受节点总数和 SSH 响应时间影响；单节点探测未完成时不会重复提交。
 
 SSH 超时设置范围 1–10 秒，默认 3 秒；巡检不使用 SSH 重试。Nginx 版本命令有独立的 10 秒上限。SSH 失败只将 SSH 状态写为离线，保留 Nginx 最近观测；SSH 成功但 Nginx 命令超时只将 Nginx 状态改为未知，不据此孤立配置绑定。Nginx 明确探测为不可用时才按既有规则孤立绑定。没有新观测超过 3 个配置间隔后，SSH 状态和 Nginx 可用性分别降为未知，清除过期版本；未知值不会满足在线或 Nginx 可用门禁。
 
@@ -32,7 +32,7 @@ SSH 超时设置范围 1–10 秒，默认 3 秒；巡检不使用 SSH 重试。
 - `GET /api/nodes/import-template` 下载带说明页和环境下拉值的 `.xlsx` 模板。
 - `POST /api/nodes/import` 限制文件为 `.xlsx` 且最多 8 MiB。表头必须与模板一致；端口、IP、环境、组名和启用凭证引用会整份校验，任何行有误时不会写入任何节点。相同校验原因按错误文本合并；页面只显示去重后的异常信息，不显示行号。API 保留 `row`/`row_range` 元数据供调用方定位原始 Excel 行。
 - `GET /api/nodes/export` 带 `ids` 时按勾选顺序导出；没有 `ids` 时按当前搜索、组、环境和状态筛选导出。导出字段与模板相同，凭证列只有凭证名称。
-- 成功的批量导入写一条数量摘要；导出写入范围和行数。节点及节点组 ORM 变更由 NX-060 操作审计记录。批量探测、锁定、解锁和逻辑删除使用 `node.batch_max_count` 上限，默认 3，页面选择和后端门禁一致。
+- 成功的批量导入写一条数量摘要；导出记录范围和行数。节点及节点组变更写入操作日志。批量探测、锁定、解锁和逻辑删除使用 `node.batch_max_count` 上限，默认 3，页面选择和后端门禁一致。
 
 ## API 与权限
 
@@ -47,7 +47,9 @@ SSH 超时设置范围 1–10 秒，默认 3 秒；巡检不使用 SSH 重试。
 | `POST /api/nodes/probe` | `nodes.ssh_test` | 按 `node.batch_max_count` 上限对活动节点异步探测；锁定、无凭证或禁用凭证会作为失败项记录，不尝试连接。 |
 | `POST /api/nodes/{node_id}/system-info` | `nodes.ssh_test` | 异步采集 OS、内核、CPU、内存、磁盘和运行时间。 |
 | `POST /api/nodes/{node_id}/nginx-probe` | `nodes.ssh_test` | 单独异步检测 Nginx 版本和可用状态。 |
+| `GET /api/nodes/import-template` | `nodes.create` | 下载节点导入模板。 |
 | `POST /api/nodes/import` | `nodes.create` | 上传 `.xlsx` 并执行全文件校验。 |
+| `GET /api/nodes/export` | `nodes.read` | 按所选 ID 或当前筛选条件导出节点。 |
 
 JSON API 使用 `/api/` 前缀、服务端会话和全局 CSRF；OpenAPI 已登记请求/响应与错误模型。节点列表导出需要 `nodes.read`，模板/导入需要 `nodes.create`。
 
@@ -55,6 +57,6 @@ JSON API 使用 `/api/` 前缀、服务端会话和全局 CSRF；OpenAPI 已登�
 
 ## 状态与操作约束
 
-- 节点启用测试复用 NX-005 的持久化任务与结果树；`node.batch_max_count` 控制并发 worker 数，默认 3。所有阻塞 SSH 都在线程池执行。
+- 节点启用测试使用持久化后台任务与结果树；`node.batch_max_count` 控制并发节点数，默认 3。所有阻塞 SSH 操作均在线程中执行。
 - 节点表单和分组管理复用公共 Jinja2 布局；重要写入和批次摘要写入操作审计。
 - `GET /api/nodes/{node_id}` 返回节点详情；详情弹窗打开后会采集系统信息并检测 Nginx，所有 SSH I/O 在线程池执行。批量探测上限由 `node.batch_max_count` 控制。

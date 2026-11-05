@@ -3,8 +3,8 @@
 ## 会话
 
 - `sessionid` Cookie 只保存随机句柄，并使用浏览器会话 Cookie；会话数据保存在 `ngxops_sessions`，JSON 序列化，服务端按北京时间在登录当天结束时过期。浏览器正常关闭后再次打开需重新登录；即使浏览器恢复了会话 Cookie，服务端日切仍会拒绝次日请求。
-- 登录辅助函数 `login_user(request, user)` 轮换 session key 后记录 `user_id`；`logout_user(request)` 清空并撤销当前会话。NX-010 登录成功会轮换会话键并保存非敏感设备识别信息；改密撤销该用户全部旧会话，再重新签发当前浏览器会话。
-- 不活跃且停用、已删除或格式无效的账户不能继续使用登录态。过期会话在对应 Cookie 再次访问时惰性删除；全表过期数据清理留待数据保留阶段。已登录页面可见时每 30 秒检查 `/api/session/status`，切回页面时立即检查；该检查不刷新服务端会话有效期。
+- 登录成功时服务端会更换当前会话标识并记录登录用户；登出会撤销当前会话。修改密码会撤销该用户的旧会话，再为当前浏览器建立新会话。
+- 停用、已删除或状态无效的账户不能继续使用登录态。过期会话在再次访问时失效。页面每 30 秒检查一次 `/api/session/status`，切回页面时立即检查；该接口只服务于页面会话提示，不刷新会话有效期，也不公开在 OpenAPI。
 - `NGXOPS_SECRET_KEY` 优先用于 CSRF 签名；未配置时应用在数据目录创建 `.secret_key`。部署 HTTPS 时设置 `NGXOPS_HTTPS=1`，会话和 CSRF Cookie 使用 `Secure`。
 - 运行日志位于数据目录 `logs/`，默认使用 INFO；每个非静态请求生成可从 `X-Request-ID` 响应头定位的请求 ID，用于定位该请求触发的应用异常。已登录用户访问的 HTML 页面会记录模块、页面动作、结果和中文页面说明；业务操作日志直接显示操作人、模块、动作、结果、来源 IP 和详情，不附加通用请求/任务上下文字段。日志不单独记录页面/API 的请求方法、路径、状态、耗时、用户和来源 IP，也不记录查询参数。后台任务日志带任务 ID、操作类型、批次和触发用户 ID；运行日志保留已提交的业务操作摘要及异常信息，不记录请求正文、Cookie、认证头或 SQL 绑定参数。日志目录仍包含运维标识信息，必须限制文件权限。
 - SSH 凭证使用独立的 Fernet 密钥文件 `.fernet_key` 加密，不能与 `db.sqlite3` 分开备份。凭证解密 API 需要 `credentials.read` 权限并返回 `Cache-Control: no-store`；不得把密码、私钥写入日志、任务参数或审计详情。
@@ -19,11 +19,11 @@
 
 - `get_current_user` 从服务端会话加载 `auth_user`，`require_authenticated_user`、`require_superuser` 和 `require_permission(resource, action)` 可用于页面/API 路由。
 - 其他浏览器确认强制登录时，旧会话立即失效并保留到当天结束的撤销原因；旧页面轮询可提示“账号已在其他浏览器登录，当前会话已退出”并跳转登录页。普通过期会话显示通用失效提示。
-- `require_permission` 对超管直接放行；普通用户委托给 `app.state.permission_checker(db_session, user, resource, action)`。NX-011 已接入 RBAC 解析器；用户直授始终生效，个人角色优先于用户组角色，未配置任何授权时拒绝访问。
+- 超级管理员拥有全部权限。普通用户的直接授权始终生效；如果所属用户组中存在有效角色，则使用这些组角色权限的并集，否则回退到个人角色权限。未命中任何授权时拒绝访问，详细规则见 [rbac.md](rbac.md)。
 - 页面未登录跳转 `/login/?next=...`；JSON/AJAX 未登录返回 HTTP 401，并按 JSON API 公共错误结构提供登录跳转地址。页面无权访问时写入一次性权限提示，同源 Referer 可回跳，否则由 Jinja2 渲染 403；JSON/AJAX 无权返回符合公共错误结构的 HTTP 403。接口约定见 [api.md](api.md)。
-- 权限提示通过 `consume_permission_alert(session)` 读取并消费，供 NX-004 公共布局接入 `showAlert`。
+- 页面权限提示以一次性消息展示；JSON API 使用统一的 401/403 错误响应，协议见 [api.md](api.md)。
 
-`python-multipart` 固定为 0.0.20，用于解析 URL 编码及 multipart 表单。NX-021 节点工作簿导入只接受 `.xlsx`，路由最多读取 8 MiB + 1 byte 以拒绝超限文件，再交给 openpyxl 的只读模式解析；应用层限制不替代反向代理的请求体大小限制。
+表单和工作簿上传由应用解析。节点与凭证工作簿只接受 `.xlsx`，上传大小上限由接口校验；反向代理也应设置请求体大小限制。各模块的文件格式、大小和错误行为见 [nodes.md](nodes.md) 与 [credentials.md](credentials.md)。
 
 ## 范围
 

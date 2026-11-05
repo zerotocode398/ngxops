@@ -18,20 +18,21 @@
 
 ## 执行与结果
 
-每个节点由 NX-005 任务线程池执行独立任务：检查 gcc/make、上传并校验源码、解压、准备第三方模块、configure、make、make install、按需改写主配置默认 `listen 80`、执行 `nginx -t`，最后启动并读取版本。在线第三方模块的 clone/fetch 超时读取系统设置 `upgrade.git_clone_timeout_minutes`（“Git clone 超时”，默认 2 分钟，范围 1–10 分钟），与 Nginx 升级共用。
+每个节点由独立后台任务执行：检查 gcc/make、上传并校验源码、解压、准备第三方模块、运行 configure/make/make install、按需设置主配置默认监听端口、执行 `nginx -t`，最后启动服务并读取版本。在线第三方模块的 clone/fetch 超时由系统设置 `upgrade.git_clone_timeout_minutes` 控制，默认 2 分钟，范围为 1–10 分钟；该设置也用于 Nginx 升级。
 
 - 有 `systemctl` 且当前 SSH 身份可写 systemd unit 目录或使用免密 sudo 时，写入 `/etc/systemd/system/nginx.service`，执行 daemon-reload、enable 和 start。unit 的 `User`/`Group` 使用向导值；注册、启用或启动失败会使安装失败，不静默改用二进制启动。
 - 无 systemd 管理能力时直接启动编译出的 Nginx 二进制，并在任务日志记录分流原因。
 - 成功后写回节点在线/Nginx 可用状态、版本、二进制路径和主配置路径，并更新节点导入导出路径与配置同步路径。随后复用安装阶段的 SSH 连接执行完整配置发现/同步；配置同步失败单独记录，不回滚或否定已启动的安装。
-- 任务进度、阶段、核心日志、完整远程输出、结果树和配置同步摘要持久化。迁移 v19 新增专用完整日志表；任务中心只显示核心操作，安装历史详情聚合同批次全部节点的远程操作记录，并可选择节点查看。取消仅允许 pending、工具检查、源码上传、解压和模块准备阶段；取消为协作式操作，已发出的远程命令可能运行到当前检查点。
+- 任务进度、阶段、结果和日志会持久化。任务中心显示核心操作，安装历史详情可按节点查看完整远程输出。取消仅允许在工具检查、源码上传、解压和模块准备等早期阶段执行；取消为协作式操作，已经发送的远程命令可能运行到当前检查点。
 
 ## JSON API
 
 - `POST /api/nginx-install/configure-preview`：校验参数并返回 configure 字符串和目标路径；需要 `upgrade.read` 或 `upgrade.execute` 与 CSRF。
+- `POST /api/nginx-install/path-permissions`：使用节点 SSH 账号检查安装目录和远程工作目录是否可写；需要 `upgrade.execute` 与 CSRF。
 - `POST /api/nginx-install/tasks`：全量复核包、参数和节点，创建每节点 `nginx_install` 任务及批次；需要 `upgrade.execute` 与 CSRF。
 - `GET /api/nginx-install/batches/{batch_number}`：读取有权查看的批次进度、节点任务和日志入口；`upgrade.execute` 仅能读取本人批次，`upgrade.read` 可读取全部批次。
 - 安装专用详情通过 `GET /api/tasks/{task_id}?log_view=install_full` 逐行读取同批次完整远程日志；任务中心默认读取核心操作日志。协作取消使用 `POST /api/tasks/{task_id}/cancel`，要求 `upgrade.execute` 并额外检查安装阶段。
 
 成功响应模型、状态码和认证方案登记在 [api.md](api.md)。参数快照、任务结果和日志不保存 SSH 密码或私钥。执行器和包锁目前位于单进程内，部署限制为单个 Uvicorn worker。最大节点数由 `node.batch_max_count` 设置控制，默认 3。
 
-部署前备份数据库、`.fernet_key`、`.secret_key` 和 `nginx_packages/`；然后显式运行 `python -m ngxops.database upgrade` 应用未执行迁移，包括 v15 的权限合并。迁移 v15 将旧 `nginx_install.read/create` 角色和个人直授权分别转换为 `upgrade.read/execute` 并删除旧权限项。当前验证使用伪造 SSH/任务提交，未连接真实节点、运行真实编译或验证 systemd 环境。
+部署或升级前备份数据库、`.fernet_key`、`.secret_key` 和 `nginx_packages/`，然后显式运行 `python -m ngxops.database upgrade`。安装与升级共享 `upgrade.*` 权限；迁移不会由 Web 服务启动自动执行。真实节点、编译工具链和 systemd 行为应在目标 Linux 环境验证，部署步骤见 [deployment.md](deployment.md)。

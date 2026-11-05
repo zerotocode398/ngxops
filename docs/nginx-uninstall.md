@@ -22,7 +22,7 @@
 | `GET /api/nginx/uninstall/tasks/{task_id}` | 读取状态、结果树和增量日志 | `nginx_uninstall.read` 或本人 `nginx_uninstall.execute` |
 | `POST /api/tasks/{task_id}/cancel` | 协作式取消 | `nginx_uninstall.execute` + CSRF |
 
-写请求使用会话 Cookie 和 `X-CSRFToken`，所有接口在 OpenAPI 中登记结构化请求/响应与错误模型。SSH 阻塞操作仅在预览同步路由的线程池或 NX-005 任务线程中运行；页面可轮询真实任务状态。
+写请求使用登录会话和全局 CSRF 校验；结构化请求/响应与错误模型可在 OpenAPI 中查看。SSH 操作在线程中运行，页面轮询持久化的任务状态。
 
 ## 删除范围和安全门禁
 
@@ -41,6 +41,6 @@
 
 ## 持久化
 
-统一任务类型为 `nginx_uninstall`，每个节点单独记录任务，共享 `UN-YYMMDD-NNNN` 批次号。迁移 v12 新增 `ngxops_nginx_uninstall_runs` 保存节点身份、来源、包名、prefix、清理选项和创建时间；迁移 v19 新增 `ngxops_nginx_operation_logs` 按节点保存脱敏远程输出。任务中心的 `ngxops_task_logs` 只保存核心操作，卸载专用详情聚合同批次远程日志。快照不保存 SSH 凭证明文。取消是协作式的，已执行的远程命令不会被强制终止，也不提供卸载回滚。
+任务类型为 `nginx_uninstall`，每个节点单独记录任务，同一批次共用 `UN-YYMMDD-NNNN` 批次号。任务中心显示核心操作，卸载详情按节点展示完整远程输出。任务快照不保存 SSH 凭证明文。取消是协作式的，已发送的远程命令不会被强制终止；卸载操作不提供自动回滚。
 
 部署时备份数据库和密钥后显式执行 `python -m ngxops.database upgrade` 应用未执行迁移。
