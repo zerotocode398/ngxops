@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ngxops.api.contracts import api_error_responses
 from ngxops.accounts.models import LoginFailureState, User
-from ngxops.audit.service import write_audit_log
+from ngxops.audit.service import suppress_model_audit, write_audit_log
 from ngxops.accounts.passwords import make_password, validate_new_password
 from ngxops.accounts.service import clear_login_fail_lock
 from ngxops.database.session import get_session
@@ -370,12 +370,17 @@ def _persist_user(
                 db_session.add(user)
             db_session.flush()
             profile = db_session.get(UserProfile, user.id)
+            profile_is_new = profile is None
             if profile is None:
                 profile = UserProfile(user_id=user.id, remark=values["remark"].strip())
                 db_session.add(profile)
             else:
                 profile.remark = values["remark"].strip()
-            db_session.flush()
+            if profile_is_new and target is None:
+                with suppress_model_audit(db_session):
+                    db_session.flush()
+            else:
+                db_session.flush()
             _replace_links(
                 db_session,
                 profile_roles,

@@ -31,7 +31,7 @@
                         请创建管理员账号 <code>admin create</code>。
                     </p>
                 {% endif %}
-                <p class="mb-0">完成后刷新页面。</p>
+                <p class="mb-0">完成后重启服务。</p>
             </div>
         {% elif error_type %}
             <div class="alert {% if error_type == 'account_locked' %}alert-warning{% else %}alert-danger{% endif %} login-error-alert" role="alert" id="loginErrorAlert" data-login-auto-dismiss="{% if error_type == 'account_locked' %}false{% else %}true{% endif %}">

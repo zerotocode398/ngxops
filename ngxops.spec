@@ -44,7 +44,8 @@ executable = EXE(
     [],
     name=TARGET_NAME,
     debug=False,
-    bootloader_ignore_signals=False,
+    # 避免进程组 Ctrl+C 经 bootloader 转发后对子进程重复投递。
+    bootloader_ignore_signals=True,
     strip=False,
     upx=False,
     console=True,
