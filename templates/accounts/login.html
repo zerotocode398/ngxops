@@ -21,19 +21,17 @@
             <div class="alert alert-warning login-error-alert" role="alert">
                 <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
                 {% if setup_status == 'database_uninitialized' %}
-                    <strong>数据库尚未初始化</strong>
+                    <strong>尚未初始化数据库</strong>
                     <p class="mb-2 mt-2">
-                        登录功能暂不可用。请在服务器上使用与当前服务相同的数据目录，
-                        先执行 <code>database init</code>，再执行 <code>admin create</code>。
+                        登录功能暂不可用。请先初始化数据库 <code>database init</code>，再创建管理员账号 <code>admin create</code>。
                     </p>
                 {% else %}
-                    <strong>尚未创建管理员</strong>
+                    <strong>尚未创建管理员账号</strong>
                     <p class="mb-2 mt-2">
-                        数据库已初始化，但还没有用户账户。请在服务器上使用与当前服务
-                        相同的数据目录执行 <code>admin create</code>。
+                        请创建管理员账号 <code>admin create</code>。
                     </p>
                 {% endif %}
-                <p class="mb-0">完成后刷新此页面。</p>
+                <p class="mb-0">完成后刷新页面。</p>
             </div>
         {% elif error_type %}
             <div class="alert {% if error_type == 'account_locked' %}alert-warning{% else %}alert-danger{% endif %} login-error-alert" role="alert" id="loginErrorAlert" data-login-auto-dismiss="{% if error_type == 'account_locked' %}false{% else %}true{% endif %}">

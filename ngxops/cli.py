@@ -4,10 +4,13 @@ import argparse
 import getpass
 import logging
 import os
+import signal
 import sys
 from typing import Any, Optional, Sequence
 
 import uvicorn
+from uvicorn.main import STARTUP_FAILURE
+from uvicorn.supervisors import ChangeReload
 
 from ngxops.accounts.management import (
     create_first_superuser,
@@ -23,6 +26,17 @@ from ngxops.logging_setup import configure_logging, log_exception
 
 
 logger = logging.getLogger("ngxops.cli")
+
+
+class _ForegroundServer(uvicorn.Server):
+    """让前台服务在 Ctrl+C 后完成关闭流程再退出。"""
+
+    def handle_exit(self, sig: int, frame: Any) -> None:
+        """记录退出请求但不在清理完成后重新抛出信号。"""
+        if self.should_exit and sig == signal.SIGINT:
+            self.force_exit = True
+        else:
+            self.should_exit = True
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -314,7 +328,7 @@ def _serve(settings: Settings, arguments: argparse.Namespace) -> int:
         port,
         reload_enabled,
     )
-    uvicorn.run(
+    config = uvicorn.Config(
         "ngxops.asgi:app",
         host=host,
         port=port,
@@ -324,6 +338,14 @@ def _serve(settings: Settings, arguments: argparse.Namespace) -> int:
         access_log=False,
         log_config=None,
     )
+    server = _ForegroundServer(config)
+    if config.should_reload:
+        sock = config.bind_socket()
+        ChangeReload(config, target=server.run, sockets=[sock]).run()
+    else:
+        server.run()
+    if not server.started and not config.should_reload:
+        raise SystemExit(STARTUP_FAILURE)
     return 0
 
 

@@ -55,7 +55,7 @@ python -m ngxops start --help
 
 服务选项包括 `--host`、`--port` 和 `--log-level`。前台 `serve` 使用 `--reload [true|false]` 控制自动重载；省略参数时沿用配置默认值，单独传 `--reload` 时开启，传 `--reload false` 时关闭。后台 `start` 不启用自动重载。CLI 支持 `--home PATH`，必须放在子命令之前。
 
-`serve` 直接占用当前终端，适合前台运行或由 systemd 等进程管理器托管；`start` 会脱离终端在后台启动服务，并等待 `/health` 检查通过。后台服务使用同一数据目录下的 `run/` 控制记录，之后通过 `status` 查看状态、用 `stop` 停止。
+`serve` 直接占用当前终端，适合前台运行或由 systemd 等进程管理器托管。第一次按 `Ctrl+C` 会触发连接及应用关闭流程；再次按下会请求强制退出。正常退出时，服务完成关闭后直接返回，不应出现 `KeyboardInterrupt` 或 `CancelledError` 回溯。`start` 会脱离终端在后台启动服务，并等待 `/health` 检查通过。后台服务使用同一数据目录下的 `run/` 控制记录，之后通过 `status` 查看状态、用 `stop` 停止。
 
 ## 初始化与运行
 
