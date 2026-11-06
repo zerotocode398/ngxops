@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -15,6 +16,27 @@ from build_target import target_name
 
 TARGET_NAME = target_name()
 PSUTIL_DATAS, PSUTIL_BINARIES, PSUTIL_HIDDENIMPORTS = collect_all("psutil")
+
+
+def _current_commit() -> str:
+    """读取构建源码对应的 Git commit；仓库信息不可用时返回 unknown。"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(ROOT),
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    return result.stdout.strip() or "unknown"
+
+
+BUILD_INFO_PATH = ROOT / "build" / "ngxops-build-commit.txt"
+BUILD_INFO_PATH.parent.mkdir(parents=True, exist_ok=True)
+BUILD_INFO_PATH.write_text(_current_commit(), encoding="ascii")
 analysis = Analysis(
     [str(ROOT / "ngxops" / "__main__.py")],
     pathex=[str(ROOT)],
@@ -22,6 +44,7 @@ analysis = Analysis(
     datas=[
         (str(ROOT / "templates"), "templates"),
         (str(ROOT / "static"), "static"),
+        (str(BUILD_INFO_PATH), "."),
     ] + PSUTIL_DATAS,
     hiddenimports=(
         collect_submodules("paramiko")

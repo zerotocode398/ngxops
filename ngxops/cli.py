@@ -23,6 +23,7 @@ from ngxops.cli_format import NonNullDefaultsHelpFormatter, parse_bool_argument
 from ngxops.database.connection import create_database
 from ngxops.database.migration_runner import upgrade_database
 from ngxops.logging_setup import configure_logging, log_exception
+from ngxops.version import VersionAction
 
 
 logger = logging.getLogger("ngxops.cli")
@@ -58,6 +59,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--home",
         help="Writable data directory (default: NGXOPS_HOME or ./ when unset).",
+    )
+    parser.add_argument(
+        "-v",
+        "-V",
+        "--version",
+        action=VersionAction,
+        app_name=settings.app_name,
+        app_version=settings.version,
+        help="Show program version and Git commit.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 

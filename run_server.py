@@ -9,6 +9,7 @@ import uvicorn
 from ngxops.config import get_settings
 from ngxops.cli_format import NonNullDefaultsHelpFormatter, parse_bool_argument
 from ngxops.logging_setup import configure_logging
+from ngxops.version import VersionAction
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
@@ -21,6 +22,15 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "数据目录默认为 NGXOPS_HOME；未设置时使用当前工作目录（./）。"
             "可用 --home PATH 覆盖。"
         ),
+    )
+    parser.add_argument(
+        "-v",
+        "-V",
+        "--version",
+        action=VersionAction,
+        app_name=settings.app_name,
+        app_version=settings.version,
+        help="显示程序版本和 Git commit",
     )
     parser.add_argument("--home", help="数据存储目录")
     parser.add_argument("--host", default=settings.host, help="监听地址")

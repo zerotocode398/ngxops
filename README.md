@@ -33,11 +33,13 @@
 
 ```bash
 python -m ngxops --help
+python -m ngxops --version
+python -m ngxops -v
 python -m ngxops serve --help
 python -m ngxops start --help
 ```
 
-`serve` 在当前终端运行服务，适合手动前台运行或交给 systemd 管理；`start` 脱离终端在后台启动受管服务，并等待健康检查通过，可用 `status` 查看、`stop` 停止。二进制帮助中的程序名会显示实际可执行文件名，例如 `ngxops-linux-amd64`。
+`-v`、`-V` 和 `--version` 输出程序版本及完整 Git commit。`serve` 在当前终端运行服务，适合手动前台运行或交给 systemd 管理；`start` 脱离终端在后台启动受管服务，并等待健康检查通过，可用 `status` 查看、`stop` 停止。二进制帮助中的程序名会显示实际可执行文件名，例如 `ngxops-linux-amd64`。
 
 ## 源码部署
 
@@ -102,6 +104,8 @@ python tools/build_binary.py
 
 ```bash
 /opt/ngxops/bin/ngxops --help
+/opt/ngxops/bin/ngxops --version
+/opt/ngxops/bin/ngxops -V
 /opt/ngxops/bin/ngxops serve --help
 /opt/ngxops/bin/ngxops start --help
 /opt/ngxops/bin/ngxops stop --help
