@@ -259,7 +259,7 @@ def validate_node_import_rows(
     session: Session,
     rows: Sequence[Dict[str, str]],
     user_id: int,
-    default_port: int = 22,
+    default_port: int = 26520,
     default_nginx_path: str = "/usr/sbin/nginx",
     default_main_conf_path: str = "/etc/nginx/nginx.conf",
 ) -> Tuple[List[dict], List[dict]]:

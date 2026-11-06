@@ -1,7 +1,7 @@
 """映射已接线的系统运行设置。"""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -82,7 +82,7 @@ PRESET_SETTINGS = (
         "key": "node.ssh_default_port",
         "group": "节点管理",
         "type": "integer",
-        "value": "22",
+        "value": "26520",
         "label": "SSH 默认端口",
         "description": "SSH 端口。",
         "sort_order": 12,
@@ -106,12 +106,12 @@ PRESET_SETTINGS = (
         "key": "node.status_probe_concurrency",
         "group": "节点管理",
         "type": "integer",
-        "value": "3",
+        "value": "20",
         "label": "节点状态巡检并发数",
         "description": "后台 SSH/Nginx 状态巡检的最大并发数。",
         "sort_order": 14,
         "min_value": 1,
-        "max_value": 10,
+        "max_value": 30,
         "unit": "台",
     },
     {
@@ -218,7 +218,7 @@ PRESET_SETTINGS = (
         "key": "install.default_user",
         "group": "安装管理",
         "type": "string",
-        "value": "root",
+        "value": "mas",
         "label": "默认用户 (--user)",
         "description": "安装时默认的用户。",
         "sort_order": 90,
@@ -228,7 +228,7 @@ PRESET_SETTINGS = (
         "key": "install.default_group",
         "group": "安装管理",
         "type": "string",
-        "value": "root",
+        "value": "dev",
         "label": "默认用户组 (--group)",
         "description": "安装时默认的用户组。",
         "sort_order": 91,
@@ -370,3 +370,15 @@ PRESET_SETTINGS = (
 def preset_by_key():
     """返回按设置键索引的预置元数据。"""
     return {item["key"]: item for item in PRESET_SETTINGS}
+
+
+def integer_preset_values(key: str) -> Tuple[int, int, int]:
+    """返回整数预置项的默认值、最小值和最大值。"""
+    preset = preset_by_key()[key]
+    if preset["type"] != "integer":
+        raise ValueError("设置不是整数类型：{}".format(key))
+    return (
+        int(preset["value"]),
+        int(preset["min_value"]),
+        int(preset["max_value"]),
+    )

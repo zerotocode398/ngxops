@@ -17,6 +17,7 @@ from ngxops.credentials.crypto import CredentialDecryptionError
 from ngxops.credentials.models import Credential
 from ngxops.database.session import session_scope
 from ngxops.nodes.models import Node
+from ngxops.settings.models import integer_preset_values
 from ngxops.tasks.executor import TaskContext, TaskOutcome
 from ngxops.settings.service import read_setting
 
@@ -24,6 +25,28 @@ from ngxops.settings.service import read_setting
 _NGINX_VERSION = re.compile(r"nginx/([0-9]+(?:\.[0-9]+){1,3})")
 _PRIVATE_KEY_TYPES = (paramiko.RSAKey, paramiko.ECDSAKey, paramiko.Ed25519Key)
 _MAX_TEST_WORKERS = 3
+_SSH_TIMEOUT_DEFAULT, _SSH_TIMEOUT_MIN, _SSH_TIMEOUT_MAX = integer_preset_values(
+    "node.ssh_connect_timeout"
+)
+_DETECT_RETRIES_DEFAULT, _DETECT_RETRIES_MIN, _DETECT_RETRIES_MAX = (
+    integer_preset_values("node.detect_retries")
+)
+
+
+def _diagnostic_error_type(exc: BaseException) -> str:
+    """提取异常类型及其底层连接错误类型，不保留异常原文。"""
+    causes = getattr(exc, "errors", None)
+    if isinstance(causes, dict):
+        cause_types = sorted(
+            {
+                type(cause).__name__
+                for cause in causes.values()
+                if isinstance(cause, BaseException)
+            }
+        )
+        if cause_types:
+            return "{} ({})".format(type(exc).__name__, ", ".join(cause_types))
+    return type(exc).__name__
 
 
 def _load_private_key(value: str) -> paramiko.PKey:
@@ -45,12 +68,17 @@ def _connect_ssh(
     password: str,
     private_key: str,
     context: TaskContext,
-    timeout: int = 3,
-    retries: int = 1,
+    timeout: int = _SSH_TIMEOUT_DEFAULT,
+    retries: int = _DETECT_RETRIES_DEFAULT,
     detailed_logging: bool = False,
+    diagnostic_error_types: Optional[List[str]] = None,
 ) -> Tuple[Optional[paramiko.SSHClient], str]:
     """在远程主机建立 SSH 连接并按调用方设置返回诊断日志。"""
-    retry_count = min(max(int(retries), 0), 10)
+    timeout = min(_SSH_TIMEOUT_MAX, max(_SSH_TIMEOUT_MIN, int(timeout)))
+    retry_count = min(
+        _DETECT_RETRIES_MAX,
+        max(_DETECT_RETRIES_MIN, int(retries)),
+    )
     for attempt in range(retry_count + 1):
         if detailed_logging:
             context.append_log(
@@ -83,6 +111,8 @@ def _connect_ssh(
             return client, ""
         except paramiko.AuthenticationException as exc:
             client.close()
+            if diagnostic_error_types is not None:
+                diagnostic_error_types.append(_diagnostic_error_type(exc))
             if detailed_logging:
                 context.append_log(
                     "SSH 认证失败：{}".format(str(exc).strip() or "凭证认证未通过"),
@@ -91,6 +121,8 @@ def _connect_ssh(
             return None, "SSH 认证失败"
         except Exception as exc:
             client.close()
+            if diagnostic_error_types is not None:
+                diagnostic_error_types.append(_diagnostic_error_type(exc))
             if detailed_logging:
                 context.append_log(
                     "SSH 连接异常：{}: {}".format(
@@ -152,8 +184,8 @@ def _test_node(
         auth["password"],
         auth["private_key"],
         context,
-        auth.get("ssh_timeout", 3),
-        auth.get("detect_retries", 1),
+        auth.get("ssh_timeout", _SSH_TIMEOUT_DEFAULT),
+        auth.get("detect_retries", _DETECT_RETRIES_DEFAULT),
     )
     if client is None:
         return {"node_id": node["id"], "hostname": node["hostname"], "ip": node["ip"], "ssh_success": False, "message": error}
@@ -203,8 +235,8 @@ def _load_test_targets(
             "auth_type": credential.auth_type,
             "password": secret if credential.auth_type == "password" else "",
             "private_key": secret if credential.auth_type == "key" else "",
-            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout", 3),
-            "detect_retries": read_setting(session, "node.detect_retries", 1),
+            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout"),
+            "detect_retries": read_setting(session, "node.detect_retries"),
         }
         nodes = session.scalars(
             select(Node)

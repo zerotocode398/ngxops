@@ -31,7 +31,7 @@ from ngxops.database.session import session_scope
 from ngxops.logging_setup import log_exception
 from ngxops.nodes.models import Node
 from ngxops.releases.services import _reload_nginx
-from ngxops.settings.models import preset_by_key
+from ngxops.settings.models import integer_preset_values, preset_by_key
 from ngxops.settings.service import read_setting
 from ngxops.tasks.executor import TaskCancelled, TaskContext, TaskOutcome
 from ngxops.tasks.models import Task
@@ -45,6 +45,12 @@ from ngxops.upgrade.builtin_modules import BUILTIN_ADD_MODULES
 
 
 logger = logging.getLogger(__name__)
+_SSH_TIMEOUT_DEFAULT, _SSH_TIMEOUT_MIN, _SSH_TIMEOUT_MAX = integer_preset_values(
+    "node.ssh_connect_timeout"
+)
+_DETECT_RETRIES_DEFAULT, _DETECT_RETRIES_MIN, _DETECT_RETRIES_MAX = (
+    integer_preset_values("node.detect_retries")
+)
 _MODULE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.+-]{0,99}$")
 _VERSION_FROM_NAME = re.compile(r"nginx-([0-9]+(?:\.[0-9]+){1,3})", re.IGNORECASE)
 _VERSION_FROM_OUTPUT = re.compile(r"nginx version:\s*nginx/([0-9]+(?:\.[0-9]+){1,3})")
@@ -617,8 +623,8 @@ def _load_node_target(session_factory, encryption_key: bytes, node_id: int) -> d
             "auth_type": credential.auth_type,
             "password": secret if credential.auth_type == "password" else "",
             "private_key": secret if credential.auth_type == "key" else "",
-            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout", 3),
-            "detect_retries": read_setting(session, "node.detect_retries", 1),
+            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout"),
+            "detect_retries": read_setting(session, "node.detect_retries"),
         }
 
 
@@ -637,8 +643,17 @@ def _load_private_key(value: str) -> paramiko.PKey:
 
 def _connect_target(target: dict, context: Optional[TaskContext] = None) -> paramiko.SSHClient:
     """按系统超时和重试设置连接 SSH 节点。"""
-    timeout = max(1, int(target.get("ssh_timeout", 3)))
-    retry_count = min(max(int(target.get("detect_retries", 1)), 0), 10)
+    timeout = min(
+        _SSH_TIMEOUT_MAX,
+        max(_SSH_TIMEOUT_MIN, int(target.get("ssh_timeout", _SSH_TIMEOUT_DEFAULT))),
+    )
+    retry_count = min(
+        _DETECT_RETRIES_MAX,
+        max(
+            _DETECT_RETRIES_MIN,
+            int(target.get("detect_retries", _DETECT_RETRIES_DEFAULT)),
+        ),
+    )
     pkey = None
     if target["auth_type"] != "password":
         pkey = _load_private_key(target["private_key"])
@@ -1186,8 +1201,8 @@ def _load_run_snapshot(session_factory, encryption_key: bytes, package_dir: Path
             "auth_type": credential.auth_type,
             "password": secret if credential.auth_type == "password" else "",
             "private_key": secret if credential.auth_type == "key" else "",
-            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout", 3),
-            "detect_retries": read_setting(session, "node.detect_retries", 1),
+            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout"),
+            "detect_retries": read_setting(session, "node.detect_retries"),
         }, {
             "file_name": package.file_name,
             "file_md5": package.file_md5,

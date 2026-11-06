@@ -86,8 +86,8 @@ class InstallConfigureRequest(BaseModel):
     """描述全新安装 configure 参数预览请求。"""
 
     target_prefix: str = Field("/opt/app", min_length=1, max_length=500)
-    nginx_user: str = Field("root", min_length=1, max_length=100)
-    nginx_group: str = Field("root", min_length=1, max_length=100)
+    nginx_user: str = Field("mas", min_length=1, max_length=100)
+    nginx_group: str = Field("dev", min_length=1, max_length=100)
     listen_port: int = Field(80, ge=1, le=65535)
     remote_work_dir: str = Field("/tmp/nginx-upgrade", min_length=1, max_length=500)
     make_jobs: int = Field(4, ge=1, le=32)
@@ -421,8 +421,8 @@ def nginx_install_center(
             "default_work_dir": read_setting(session, "upgrade.default_work_dir", "/tmp/nginx-upgrade"),
             "default_make_jobs": read_setting(session, "upgrade.make_jobs_default", 4),
             "default_prefix": read_setting(session, "install.default_prefix", "/opt/app"),
-            "default_user": read_setting(session, "install.default_user", "root"),
-            "default_group": read_setting(session, "install.default_group", "root"),
+            "default_user": read_setting(session, "install.default_user", "mas"),
+            "default_group": read_setting(session, "install.default_group", "dev"),
             "default_listen_port": read_setting(session, "install.default_listen_port", 80),
             "batch_max_count": read_setting(session, "node.batch_max_count", 3),
             "builtin_modules": BUILTIN_ADD_MODULES,

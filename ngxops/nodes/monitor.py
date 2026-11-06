@@ -15,12 +15,18 @@ from ngxops.database.session import session_scope
 from ngxops.logging_setup import log_context
 from ngxops.nodes.models import Node
 from ngxops.nodes.tasks import _apply_probe_result, _load_targets, _probe_target
+from ngxops.settings.models import integer_preset_values
 from ngxops.settings.service import read_setting
 from ngxops.tasks.executor import TaskCancelled
 
 
 logger = logging.getLogger(__name__)
-_MAX_MONITOR_WORKERS = 10
+_DEFAULT_MONITOR_CONCURRENCY, _MIN_MONITOR_CONCURRENCY, _MAX_MONITOR_WORKERS = (
+    integer_preset_values("node.status_probe_concurrency")
+)
+_DEFAULT_MONITOR_INTERVAL, _MIN_MONITOR_INTERVAL, _MAX_MONITOR_INTERVAL = (
+    integer_preset_values("node.status_probe_interval_seconds")
+)
 _STALE_INTERVAL_MULTIPLIER = 3
 _MONITOR_TICK_SECONDS = 5
 
@@ -147,9 +153,23 @@ class NodeStatusMonitor:
 def _load_monitor_settings(session_factory: sessionmaker) -> Tuple[int, int]:
     """读取并限制巡检间隔和并发参数。"""
     with session_scope(session_factory) as session:
-        interval = read_setting(session, "node.status_probe_interval_seconds", 60)
-        concurrency = read_setting(session, "node.status_probe_concurrency", 3)
-    return min(300, max(30, int(interval))), min(10, max(1, int(concurrency)))
+        interval = read_setting(
+            session,
+            "node.status_probe_interval_seconds",
+            _DEFAULT_MONITOR_INTERVAL,
+        )
+        concurrency = read_setting(
+            session,
+            "node.status_probe_concurrency",
+            _DEFAULT_MONITOR_CONCURRENCY,
+        )
+    return (
+        min(_MAX_MONITOR_INTERVAL, max(_MIN_MONITOR_INTERVAL, int(interval))),
+        min(
+            _MAX_MONITOR_WORKERS,
+            max(_MIN_MONITOR_CONCURRENCY, int(concurrency)),
+        ),
+    )
 
 
 def _load_due_nodes(
@@ -232,13 +252,57 @@ def _probe_and_store(
     with log_context(operation_type="node_status_probe", node_id=node_id):
         targets = _load_targets(session_factory, [node_id], encryption_key)
         if not targets:
+            logger.info(
+                "result=skipped failure_reason=target_unavailable",
+                extra={"ngxops_compact_log": True},
+            )
             return
         target = targets[0]
-        if target["is_locked"] or target["credential_error"]:
+        if target["is_locked"]:
+            logger.info(
+                "hostname=%r ip=%s result=skipped failure_reason=node_locked",
+                target["hostname"],
+                target["ip"],
+                extra={"ngxops_compact_log": True},
+            )
             return
+        if target["credential_error"]:
+            logger.info(
+                "hostname=%r ip=%s result=skipped failure_reason=credential_unavailable",
+                target["hostname"],
+                target["ip"],
+                extra={"ngxops_compact_log": True},
+            )
+            return
+        target["_ssh_error_types"] = []
         target["detect_retries"] = 0
         result = _probe_target(target, _MonitorContext(stop_event))
         _apply_probe_result(session_factory, target, result, update_nginx=True)
+        if not result["ssh_success"]:
+            error_types = target["_ssh_error_types"]
+            if any("timeout" in error_type.lower() for error_type in error_types):
+                failure_reason = "timeout"
+            else:
+                failure_reason = result["message"] or "SSH 连接失败"
+            if error_types and failure_reason != "timeout":
+                failure_reason = "{} ({})".format(
+                    failure_reason,
+                    ", ".join(error_types),
+                )
+        elif result["nginx_available"] is False:
+            failure_reason = "未检测到 Nginx"
+        elif result["nginx_available"] is None:
+            failure_reason = "Nginx 探测超时"
+        else:
+            failure_reason = "-"
+        logger.info(
+            "hostname=%r ip=%s result=%r failure_reason=%r",
+            target["hostname"],
+            target["ip"],
+            result["message"] or "探测完成",
+            failure_reason,
+            extra={"ngxops_compact_log": True},
+        )
 
 
 def _expire_stale_states(session_factory: sessionmaker, interval: int) -> None:

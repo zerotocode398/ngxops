@@ -8,6 +8,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import paramiko
 
 from ngxops.credentials.tasks import _connect_ssh
+from ngxops.settings.models import integer_preset_values
 from ngxops.tasks.executor import TaskContext
 
 
@@ -26,6 +27,8 @@ SKIP_FILES = frozenset(
 )
 MAX_INCLUDE_DEPTH = 3
 MAX_DISCOVERED_FILES = 500
+_SSH_TIMEOUT_DEFAULT = integer_preset_values("node.ssh_connect_timeout")[0]
+_DETECT_RETRIES_DEFAULT = integer_preset_values("node.detect_retries")[0]
 MAX_DISCOVERY_ERRORS = 100
 
 
@@ -143,8 +146,8 @@ def discover_remote_configs(
             target["password"],
             target["private_key"],
             context,
-            target.get("ssh_timeout", 3),
-            target.get("detect_retries", 1),
+            target.get("ssh_timeout", _SSH_TIMEOUT_DEFAULT),
+            target.get("detect_retries", _DETECT_RETRIES_DEFAULT),
         )
         if client is None:
             add_error(main_conf_path, connect_error)

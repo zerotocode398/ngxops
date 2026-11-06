@@ -290,7 +290,7 @@ def _node_form_context(
             "errors": errors or {},
             "groups": groups,
             "credentials": credentials,
-            "default_port": read_setting(session, "node.ssh_default_port", 22),
+            "default_port": read_setting(session, "node.ssh_default_port", 26520),
             "default_nginx_path": read_setting(session, "config.default_nginx_bin", "/usr/sbin/nginx"),
             "default_main_conf_path": read_setting(session, "config.default_nginx_path", "/etc/nginx/nginx.conf"),
             "selected_groups": set(
@@ -363,7 +363,7 @@ def _validate_node_values(
     except ValueError:
         errors["ip"] = "请输入有效的 IPv4 或 IPv6 地址"
     try:
-        port = int(values.get("port", "22"))
+        port = int(values.get("port", "26520"))
         if port < 1 or port > 65535:
             raise ValueError()
         values["port"] = port
@@ -501,7 +501,7 @@ def create_node(
     session: Session = Depends(get_session),
 ):
     """校验并创建节点或恢复同 IP 的历史节点。"""
-    port = port or str(read_setting(session, "node.ssh_default_port", 22))
+    port = port or str(read_setting(session, "node.ssh_default_port", 26520))
     nginx_path = nginx_path or read_setting(
         session, "config.default_nginx_bin", "/usr/sbin/nginx"
     )
@@ -578,7 +578,7 @@ def update_node(
     node_id: int = Path(..., ge=1),
     hostname: str = Form(""),
     ip: str = Form(""),
-    port: str = Form("22"),
+    port: str = Form(""),
     environment: str = Form("dev"),
     nginx_path: str = Form("/usr/sbin/nginx"),
     main_conf_path: str = Form("/etc/nginx/nginx.conf"),
@@ -597,6 +597,7 @@ def update_node(
     )
     if node is None:
         raise HTTPException(status_code=404, detail="节点不存在")
+    port = port or str(read_setting(session, "node.ssh_default_port", 26520))
     values = {
         "hostname": hostname,
         "ip": ip,
@@ -1095,7 +1096,7 @@ def import_nodes(
         session,
         rows,
         user.id,
-        default_port=read_setting(session, "node.ssh_default_port", 22),
+        default_port=read_setting(session, "node.ssh_default_port", 26520),
         default_nginx_path=read_setting(
             session, "config.default_nginx_bin", "/usr/sbin/nginx"
         ),

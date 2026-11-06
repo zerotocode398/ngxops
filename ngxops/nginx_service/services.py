@@ -209,8 +209,8 @@ def _load_target(
             "auth_type": credential.auth_type,
             "password": secret if credential.auth_type == "password" else "",
             "private_key": secret if credential.auth_type != "password" else "",
-            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout", 3),
-            "detect_retries": read_setting(session, "node.detect_retries", 1),
+            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout"),
+            "detect_retries": read_setting(session, "node.detect_retries"),
         }
     return target, ""
 

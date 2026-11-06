@@ -3,7 +3,7 @@
 import logging
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import OperationalError
@@ -21,6 +21,7 @@ from ngxops.tasks.models import ACTIVE_STATUSES, Task
 logger = logging.getLogger(__name__)
 _PURGE_LOCK = threading.Lock()
 _LAST_PURGE_DATE = None
+_SETTING_DEFAULT_UNSET = object()
 _RELEASE_TYPES = ("release_publish", "release_rollback")
 _UPGRADE_TYPES = ("nginx_upgrade", "nginx_rollback")
 _UPGRADE_ACTIVE_PHASES = (
@@ -87,8 +88,23 @@ def initialize_defaults(session: Session) -> None:
                 setting.updated_at = datetime.utcnow()
 
 
-def read_setting(session: Session, key: str, default=None):
-    """读取设置值并按预置类型转换；未初始化时返回调用方默认值。"""
+def read_setting(session: Session, key: str, default: Any = _SETTING_DEFAULT_UNSET):
+    """读取设置值并按预置类型转换；未传回退值时使用预置默认值。"""
+    preset = preset_by_key().get(key)
+    if default is _SETTING_DEFAULT_UNSET:
+        if preset is None:
+            default = None
+        elif preset["type"] == "integer":
+            default = int(preset["value"])
+        elif preset["type"] == "boolean":
+            default = str(preset["value"]).lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+        else:
+            default = preset["value"]
     try:
         setting = session.scalar(
             select(SystemSetting).where(SystemSetting.key == key)
@@ -99,7 +115,6 @@ def read_setting(session: Session, key: str, default=None):
         session.rollback()
         return default
     if setting is None:
-        preset = preset_by_key().get(key)
         if preset is None:
             return default
         raw_value = preset["value"]
@@ -112,8 +127,10 @@ def read_setting(session: Session, key: str, default=None):
             value = int(raw_value)
         except (TypeError, ValueError):
             return default
-        preset = preset_by_key().get(key, {})
-        if value < preset.get("min_value", value) or value > preset.get("max_value", value):
+        if preset is not None and (
+            value < preset.get("min_value", value)
+            or value > preset.get("max_value", value)
+        ):
             return default
         return value
     if value_type == "boolean":

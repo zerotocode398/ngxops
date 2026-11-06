@@ -22,6 +22,7 @@ from ngxops.credentials.models import Credential
 from ngxops.credentials.tasks import _connect_ssh
 from ngxops.database.session import session_scope
 from ngxops.nodes.models import Node, NodeSyncSetting
+from ngxops.settings.models import integer_preset_values
 from ngxops.tasks.executor import (
     TaskContext,
     TaskOutcome,
@@ -30,6 +31,8 @@ from ngxops.tasks.executor import (
 from ngxops.settings.service import read_setting
 
 
+_SSH_TIMEOUT_DEFAULT = integer_preset_values("node.ssh_connect_timeout")[0]
+_DETECT_RETRIES_DEFAULT = integer_preset_values("node.detect_retries")[0]
 DEFAULT_MAIN_CONF_PATH = "/etc/nginx/nginx.conf"
 MAX_SYNC_WORKERS = 3
 MAX_RESULT_DETAIL_ITEMS = 75
@@ -89,8 +92,8 @@ def _load_target(
             "max_discover_depth": read_setting(
                 session, "config.discover_max_depth", 3
             ),
-            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout", 3),
-            "detect_retries": read_setting(session, "node.detect_retries", 1),
+            "ssh_timeout": read_setting(session, "node.ssh_connect_timeout"),
+            "detect_retries": read_setting(session, "node.detect_retries"),
         }
         try:
             if credential.auth_type == "password":
@@ -408,8 +411,8 @@ def _cleanup_marked_bindings(
             target["password"],
             target["private_key"],
             context,
-            target.get("ssh_timeout", 3),
-            target.get("detect_retries", 1),
+            target.get("ssh_timeout", _SSH_TIMEOUT_DEFAULT),
+            target.get("detect_retries", _DETECT_RETRIES_DEFAULT),
         )
         if client is None:
             errors = [
@@ -535,8 +538,8 @@ def _sync_node(
             target["password"],
             target["private_key"],
             context,
-            target.get("ssh_timeout", 3),
-            target.get("detect_retries", 1),
+            target.get("ssh_timeout", _SSH_TIMEOUT_DEFAULT),
+            target.get("detect_retries", _DETECT_RETRIES_DEFAULT),
         )
     if ssh_client is None:
         if progress_callback:

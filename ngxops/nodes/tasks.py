@@ -50,8 +50,8 @@ def _load_targets(
                 "password": "",
                 "private_key": "",
                 "credential_error": "",
-                "ssh_timeout": read_setting(session, "node.ssh_connect_timeout", 3),
-                "detect_retries": read_setting(session, "node.detect_retries", 1),
+                "ssh_timeout": read_setting(session, "node.ssh_connect_timeout"),
+                "detect_retries": read_setting(session, "node.detect_retries"),
             }
             credential = node.credential
             if credential is None:
@@ -84,7 +84,7 @@ def _connect_target(
     if target["credential_error"]:
         return None, target["credential_error"]
     target["_probe_started_at"] = datetime.utcnow()
-    return _connect_ssh(
+    connection_args = (
         target["ip"],
         target["port"],
         target["username"],
@@ -94,6 +94,13 @@ def _connect_target(
         context,
         target["ssh_timeout"],
         target["detect_retries"],
+    )
+    diagnostic_error_types = target.get("_ssh_error_types")
+    if diagnostic_error_types is None:
+        return _connect_ssh(*connection_args)
+    return _connect_ssh(
+        *connection_args,
+        diagnostic_error_types=diagnostic_error_types,
     )
 
 

@@ -26,7 +26,13 @@
                 {% for setting in groups[name] %}
                 {% set preset = presets[setting.key] %}
                 <label class="settings-field" for="setting-{{ setting.key }}">
-                    <span class="settings-field-copy"><strong>{{ setting.label }}</strong><small>{{ setting.description }}</small></span>
+                    <span class="settings-field-copy">
+                        <strong>{{ setting.label }}</strong>
+                        <small>{{ setting.description }}</small>
+                        {% if preset.get('min_value') is not none and preset.get('max_value') is not none %}
+                        <small class="settings-range">参考范围：{{ preset.min_value }} 至 {{ preset.max_value }}{% if preset.unit %} {{ preset.unit }}{% endif %}</small>
+                        {% endif %}
+                    </span>
                     <span class="settings-control">
                         {% if setting.value_type == 'integer' %}
                         <input class="form-control form-control-sm" id="setting-{{ setting.key }}" type="number" name="{{ setting.key }}" value="{{ setting.value }}" min="{{ preset.min_value }}" max="{{ preset.max_value }}" step="1" data-setting-key="{{ setting.key }}" data-initial="{{ setting.value }}" {% if not can_update %}readonly{% endif %}>

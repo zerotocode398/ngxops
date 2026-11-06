@@ -82,10 +82,16 @@ class RedactingFormatter(logging.Formatter):
             no_request_id_fmt or fmt,
             datefmt=datefmt,
         )
+        self._compact_formatter = logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(message)s",
+            datefmt=datefmt,
+        )
 
     def format(self, record: logging.LogRecord) -> str:
         """格式化并遮蔽日志内容中的敏感值。"""
-        if getattr(record, "ngxops_business_action", False):
+        if getattr(record, "ngxops_compact_log", False):
+            rendered = self._compact_formatter.format(record)
+        elif getattr(record, "ngxops_business_action", False):
             rendered = self._business_action_formatter.format(record)
         elif getattr(record, "request_id", "-") == "-":
             rendered = self._no_request_id_formatter.format(record)
