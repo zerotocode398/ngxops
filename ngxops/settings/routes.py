@@ -238,7 +238,7 @@ def update_settings_group(
                 session,
                 "系统设置",
                 "更新节点状态巡检间隔",
-                "每台节点两次后台状态巡检的最短间隔：{}".format(
+                "每台节点状态巡检间隔：{}".format(
                     probe_interval_change
                 ),
             )

@@ -25,6 +25,8 @@
 | 审计日志 | 登录日志 | `/audit/logins/` | [audit.md](audit.md) | 服务端页面 |
 | 系统设置 | 系统设置 | `/settings/` | [settings.md](settings.md) | `/api/settings/*` |
 
+点击左侧功能菜单时，页面只切换右侧内容，侧栏保持原位；浏览器前进和后退仍可切换页面。
+
 账号登录、个人资料和密码修改见 [accounts.md](accounts.md)。这些页面与用户、角色、用户组管理分属不同文档：账户文档说明个人访问和会话，RBAC 文档说明管理员管理身份及授权。
 
 ## FastAPI 接口

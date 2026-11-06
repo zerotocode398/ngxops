@@ -773,7 +773,7 @@
         if (active) window.setInterval(function () { poll(false); }, window.NGXOPS_TASK_POLL_INTERVAL || 2000);
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
+    function initializeTaskCenterPage() {
         document.querySelectorAll(".task-cancel-button").forEach(function (button) {
             button.addEventListener("click", function () { cancelTask(button); });
         });
@@ -781,5 +781,11 @@
         initializeRowNavigation();
         initializeListPolling();
         initializeDetailPolling();
-    });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeTaskCenterPage, { once: true });
+    } else {
+        initializeTaskCenterPage();
+    }
 }());

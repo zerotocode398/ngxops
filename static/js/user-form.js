@@ -1,10 +1,16 @@
 (function () {
     "use strict";
 
-    document.addEventListener("DOMContentLoaded", function () {
+    function initializeUserFormPage() {
         initializeEntityPickers();
         initializePermissionToggle();
-    });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeUserFormPage, { once: true });
+    } else {
+        initializeUserFormPage();
+    }
 
     // 初始化可搜索的角色和用户组多选弹窗。
     function initializeEntityPickers() {

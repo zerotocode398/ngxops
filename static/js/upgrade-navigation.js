@@ -150,6 +150,7 @@
                 window.location.assign(result.url.href);
                 return;
             }
+            if (window.NGXOPS_UPDATE_SIDEBAR) window.NGXOPS_UPDATE_SIDEBAR(result.url, null);
             if (pushHistory) window.history.pushState({ upgradeLocalView: true }, "", result.url.href);
             document.dispatchEvent(new CustomEvent("ngxops:page-inserted"));
             window.scrollTo({ top: 0, behavior: "auto" });
@@ -179,6 +180,7 @@
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
             return;
         }
+        if (!isUpgradePage(new URL(window.location.href))) return;
         var link = event.target.closest("a[href]");
         if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
         var url = new URL(link.href, window.location.href);
@@ -189,6 +191,7 @@
 
     /** 以局部请求处理升级页筛选和已确认的包删除。 */
     document.addEventListener("submit", function (event) {
+        if (!isUpgradePage(new URL(window.location.href))) return;
         var form = event.target;
         if (!form || !form.closest("#pageContent")) return;
         if (form.method.toUpperCase() === "GET") {
