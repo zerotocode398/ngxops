@@ -109,6 +109,11 @@
         activateGroup(group);
     });
     $(document).on("click", "[data-save-settings]", function () {
+        var button = this;
+        if (button.disabled || button.getAttribute("data-saving") === "1") return;
+        button.setAttribute("data-saving", "1");
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
         var group = this.getAttribute("data-save-settings");
         var values = {};
         fieldsFor(group).each(function () {
@@ -125,6 +130,11 @@
             .fail(function (xhr) {
                 var body = xhr.responseJSON || {};
                 if (window.showToast) window.showToast(body.message || "系统设置保存失败", "danger");
+            })
+            .always(function () {
+                button.removeAttribute("data-saving");
+                button.removeAttribute("aria-busy");
+                button.disabled = false;
             });
     });
 })(window.jQuery);

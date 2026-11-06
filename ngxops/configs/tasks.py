@@ -90,7 +90,7 @@ def _load_target(
             "private_key": "",
             "main_conf_path": main_conf_path,
             "max_discover_depth": read_setting(
-                session, "config.discover_max_depth", 3
+                session, "config.discover_max_depth"
             ),
             "ssh_timeout": read_setting(session, "node.ssh_connect_timeout"),
             "detect_retries": read_setting(session, "node.detect_retries"),

@@ -25,7 +25,7 @@ SKIP_FILES = frozenset(
         "win-utf",
     )
 )
-MAX_INCLUDE_DEPTH = 3
+MAX_INCLUDE_DEPTH = integer_preset_values("config.discover_max_depth")[0]
 MAX_DISCOVERED_FILES = 500
 _SSH_TIMEOUT_DEFAULT = integer_preset_values("node.ssh_connect_timeout")[0]
 _DETECT_RETRIES_DEFAULT = integer_preset_values("node.detect_retries")[0]

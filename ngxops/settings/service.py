@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 _PURGE_LOCK = threading.Lock()
 _LAST_PURGE_DATE = None
 _SETTING_DEFAULT_UNSET = object()
+_LEGACY_SETTING_FALLBACK_KEYS = frozenset(
+    ("release.backup_dir", "upgrade.package_max_size_mb")
+)
 _RELEASE_TYPES = ("release_publish", "release_rollback")
 _UPGRADE_TYPES = ("nginx_upgrade", "nginx_rollback")
 _UPGRADE_ACTIVE_PHASES = (
@@ -74,37 +77,42 @@ def initialize_defaults(session: Session) -> None:
         setting.options = item.get("options", "")
         setting.is_required = 1 if item.get("is_required", True) else 0
         setting.sort_order = item.get("sort_order", 0)
-        if item["key"] == "node.ssh_connect_timeout":
+        if item["type"] == "integer":
             try:
                 previous_value = int(setting.value)
             except (TypeError, ValueError):
                 previous_value = int(item["value"])
-            bounded_value = min(
-                item["max_value"],
-                max(item["min_value"], previous_value),
-            )
+            minimum = item.get("min_value")
+            maximum = item.get("max_value")
+            bounded_value = previous_value
+            if minimum is not None:
+                bounded_value = max(minimum, bounded_value)
+            if maximum is not None:
+                bounded_value = min(maximum, bounded_value)
             if str(bounded_value) != setting.value:
                 setting.value = str(bounded_value)
                 setting.updated_at = datetime.utcnow()
 
 
 def read_setting(session: Session, key: str, default: Any = _SETTING_DEFAULT_UNSET):
-    """读取设置值并按预置类型转换；未传回退值时使用预置默认值。"""
+    """读取设置值并按预置元数据转换；已登记 key 始终以预置值作为回退。"""
     preset = preset_by_key().get(key)
-    if default is _SETTING_DEFAULT_UNSET:
-        if preset is None:
-            default = None
-        elif preset["type"] == "integer":
-            default = int(preset["value"])
+    preset_default = default
+    if preset is not None:
+        raw_default = preset["value"]
+        if preset["type"] == "integer":
+            preset_default = int(raw_default)
         elif preset["type"] == "boolean":
-            default = str(preset["value"]).lower() in (
+            preset_default = str(raw_default).lower() in (
                 "true",
                 "1",
                 "yes",
                 "on",
             )
         else:
-            default = preset["value"]
+            preset_default = raw_default
+    elif default is _SETTING_DEFAULT_UNSET:
+        preset_default = None
     try:
         setting = session.scalar(
             select(SystemSetting).where(SystemSetting.key == key)
@@ -113,25 +121,30 @@ def read_setting(session: Session, key: str, default: Any = _SETTING_DEFAULT_UNS
         if "no such table: ngxops_system_settings" not in str(exc).lower():
             raise
         session.rollback()
-        return default
+        if (
+            key in _LEGACY_SETTING_FALLBACK_KEYS
+            and default is not _SETTING_DEFAULT_UNSET
+        ):
+            return default
+        return preset_default
     if setting is None:
         if preset is None:
-            return default
+            return preset_default
         raw_value = preset["value"]
         value_type = preset["type"]
     else:
         raw_value = setting.value
-        value_type = setting.value_type
+        value_type = preset["type"] if preset is not None else setting.value_type
     if value_type == "integer":
         try:
             value = int(raw_value)
         except (TypeError, ValueError):
-            return default
+            return preset_default
         if preset is not None and (
             value < preset.get("min_value", value)
             or value > preset.get("max_value", value)
         ):
-            return default
+            return preset_default
         return value
     if value_type == "boolean":
         return str(raw_value).lower() in ("true", "1", "yes", "on")
