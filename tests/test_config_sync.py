@@ -594,8 +594,8 @@ def test_config_list_search_and_filters_are_visible(config_client):
     assert "edge-frontend.conf" in detail.text
 
 
-def test_config_detail_filters_nodes_by_selected_binding_content(config_client):
-    """验证从版本历史返回标签时只展示当前绑定正文相同的节点。"""
+def test_config_detail_filters_to_selected_binding_node(config_client):
+    """验证从绑定详情返回标签时只展示当前绑定所属节点。"""
     client, app, _csrf_token, node_id, user_id = config_client
     with session_scope(app.state.database.session_factory) as session:
         with session.begin():
@@ -683,9 +683,9 @@ def test_config_detail_filters_nodes_by_selected_binding_content(config_client):
     ) in binding_detail.text
     assert filtered_detail.status_code == 200, filtered_detail.text
     assert "config-node" in filtered_detail.text
-    assert "nginx-node-matching" in filtered_detail.text
+    assert "nginx-node-matching" not in filtered_detail.text
     assert "nginx-node-different" not in filtered_detail.text
-    assert "仅显示与 config-node 配置内容完全相同的绑定" in filtered_detail.text
+    assert "仅显示节点 config-node 的绑定" in filtered_detail.text
     assert "配置内容" in filtered_detail.text
     assert "内容模板" not in filtered_detail.text
     assert unfiltered_detail.status_code == 200, unfiltered_detail.text

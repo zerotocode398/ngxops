@@ -931,9 +931,9 @@ def config_detail(
     config = db_session.get(Config, config_id)
     if config is None:
         raise HTTPException(status_code=404, detail="配置标签不存在")
-    content_filter_binding = None
+    selected_binding = None
     if binding_id is not None:
-        content_filter_binding = db_session.scalar(
+        selected_binding = db_session.scalar(
             select(ConfigBinding)
             .join(Node, ConfigBinding.node_id == Node.id)
             .options(joinedload(ConfigBinding.node))
@@ -943,7 +943,7 @@ def config_detail(
                 Node.is_deleted.is_(False),
             )
         )
-        if content_filter_binding is None:
+        if selected_binding is None:
             raise HTTPException(status_code=404, detail="配置标签绑定不存在")
     binding_query = (
         select(ConfigBinding)
@@ -951,10 +951,8 @@ def config_detail(
         .options(joinedload(ConfigBinding.node))
         .where(ConfigBinding.config_id == config_id, Node.is_deleted.is_(False))
     )
-    if content_filter_binding is not None:
-        binding_query = binding_query.where(
-            ConfigBinding.content == content_filter_binding.content
-        )
+    if selected_binding is not None:
+        binding_query = binding_query.where(ConfigBinding.id == selected_binding.id)
     bindings = db_session.scalars(
         binding_query.order_by(Node.hostname.asc(), Node.id.asc())
     ).all()
@@ -966,7 +964,7 @@ def config_detail(
         {
             "config": config,
             "bindings": bindings,
-            "content_filter_binding": content_filter_binding,
+            "selected_binding": selected_binding,
             "source_labels": SOURCE_LABELS,
             "status_labels": STATUS_LABELS,
             "can_create": _can(user, request, db_session, "create"),
