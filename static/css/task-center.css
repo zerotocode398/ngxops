@@ -190,7 +190,8 @@
     display: block;
 }
 
-#taskTargetOverflow[hidden] {
+#taskTargetOverflow[hidden],
+#taskTargetConfigOverflow[hidden] {
     display: none !important;
 }
 

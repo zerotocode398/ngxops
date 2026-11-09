@@ -4,7 +4,7 @@
 {% block page_title %}任务详情 #{{ task.id }}{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{{ request.url_for('static', path='css/task-center.css') }}?v=9">
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/task-center.css') }}?v=10">
 {% endblock %}
 
 {% block content %}
@@ -89,8 +89,18 @@
         <div class="mb-3">
             <h3 class="h6 mb-2"><i class="bi bi-file-earmark-code me-1" aria-hidden="true"></i>{% if task.operation_type == 'credential_enable_test' %}目标凭证{% else %}目标配置{% endif %}（{{ target_config_count }}）</h3>
             <div class="d-flex flex-wrap gap-1">
-                {% for target in target_configs %}<span class="badge badge-outline">{{ target }}</span>{% endfor %}
+                {% for target in target_configs[:3] %}<span class="badge badge-outline">{{ target }}</span>{% endfor %}
             </div>
+            {% if target_config_count > 3 %}
+            <div class="d-flex flex-wrap gap-1 mt-1" id="taskTargetConfigOverflow" hidden>
+                {% for target in target_configs[3:] %}<span class="badge badge-outline">{{ target }}</span>{% endfor %}
+            </div>
+            <button class="btn btn-link btn-sm px-0 mt-1" type="button" id="taskToggleTargetConfigs"
+                    data-count="{{ target_config_count - 3 }}" aria-expanded="false"
+                    aria-controls="taskTargetConfigOverflow">
+                展开其余 {{ target_config_count - 3 }} 项
+            </button>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -142,5 +152,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ request.url_for('static', path='js/task-center.js') }}?v=14"></script>
+<script src="{{ request.url_for('static', path='js/task-center.js') }}?v=15"></script>
 {% endblock %}

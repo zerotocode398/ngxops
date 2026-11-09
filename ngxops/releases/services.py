@@ -979,7 +979,7 @@ def _run_node_batch(
                     tree,
                     item["binding_id"],
                     "failed",
-                    "同节点前序配置失败，已跳过",
+                    "同节点前序配置{}失败，当前配置未执行".format(operation_label),
                     tree_lock,
                 )
                 continue

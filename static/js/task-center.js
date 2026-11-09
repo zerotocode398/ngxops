@@ -174,10 +174,7 @@
                 return name ? name + "：" + message : message;
             }).filter(Boolean);
             if (messages.length) {
-                var visible = messages.slice(0, 5).join("；");
-                return messages.length > 5
-                    ? visible + "；另有 " + (messages.length - 5) + " 项"
-                    : visible;
+                return messages.join("；");
             }
         }
         if (result.status === "failed" || result.success === false) return "执行失败";
@@ -191,6 +188,7 @@
         var previousScroll = root.querySelector(".task-node-result-scroll");
         var taskDetail = root.closest("#taskDetail");
         var isUninstall = taskDetail && taskDetail.dataset.isUninstallType === "true";
+        var isRelease = taskDetail && taskDetail.dataset.isReleaseType === "true";
         var scrollTop = previousScroll ? previousScroll.scrollTop : 0;
         var scrollLeft = previousScroll ? previousScroll.scrollLeft : 0;
         root.replaceChildren();
@@ -248,7 +246,7 @@
             reasonText.textContent = reason;
             reasonText.title = reason;
             reasonCell.appendChild(reasonText);
-            if (isUninstall && reason.length > 160) {
+            if ((isUninstall && reason.length > 160) || (isRelease && reason.length > 60)) {
                 var reasonKey = String(result.node_id || result.hostname || result.ip || index);
                 var expanded = expandedNodeReasons[reasonKey] === true;
                 var toggle = document.createElement("button");
@@ -335,17 +333,17 @@
         });
     }
 
-    function initializeTargetToggle() {
-        var button = document.getElementById("taskToggleTargets");
-        var overflow = document.getElementById("taskTargetOverflow");
+    function initializeTargetToggle(buttonId, overflowId, unit, collapseLabel) {
+        var button = document.getElementById(buttonId);
+        var overflow = document.getElementById(overflowId);
         if (!button || !overflow) return;
         button.addEventListener("click", function () {
             var expanded = button.getAttribute("aria-expanded") === "true";
             button.setAttribute("aria-expanded", expanded ? "false" : "true");
             overflow.hidden = expanded;
             button.textContent = expanded
-                ? "展开其余 " + button.dataset.count + " 台"
-                : "收起目标节点";
+                ? "展开其余 " + button.dataset.count + unit
+                : collapseLabel;
         });
     }
 
@@ -782,7 +780,13 @@
         document.querySelectorAll(".task-cancel-button").forEach(function (button) {
             button.addEventListener("click", function () { cancelTask(button); });
         });
-        initializeTargetToggle();
+        initializeTargetToggle("taskToggleTargets", "taskTargetOverflow", " 台", "收起目标节点");
+        initializeTargetToggle(
+            "taskToggleTargetConfigs",
+            "taskTargetConfigOverflow",
+            " 项",
+            "收起目标配置"
+        );
         initializeRowNavigation();
         initializeListPolling();
         initializeDetailPolling();

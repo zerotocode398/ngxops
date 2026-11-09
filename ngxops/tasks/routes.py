@@ -298,7 +298,7 @@ def task_detail(
             "targets": targets,
             "target_node_count": len(targets),
             "log_target_map": log_target_map,
-            "target_configs": target_configs[:50],
+            "target_configs": target_configs,
             "target_config_count": len(target_configs),
             "trigger_username": trigger_username,
             "can_read_releases": can_read_all,
