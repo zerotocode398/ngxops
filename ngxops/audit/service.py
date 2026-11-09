@@ -291,6 +291,12 @@ def _capture_before_flush(session: Session, flush_context, instances) -> None:
             module = _TRACKED_TABLES.get(table_name)
             if module is None or actor_id is None:
                 continue
+            if (
+                table_name == "ngxops_binding_versions"
+                and object_action == "create"
+                and getattr(obj, "version", None) == 1
+            ):
+                continue
             state = inspect(obj)
             if object_action == "update" and not session.is_modified(
                 obj, include_collections=True

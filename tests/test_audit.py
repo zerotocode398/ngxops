@@ -32,8 +32,10 @@ def audit_session_factory(tmp_path):
     return app.state.database.session_factory
 
 
-def test_binding_audit_names_config_and_node(audit_session_factory):
-    """创建绑定和版本时记录配置标签名、节点身份与版本号。"""
+def test_binding_audit_omits_initial_version_and_names_later_versions(
+    audit_session_factory,
+):
+    """创建绑定时忽略初始版本审计并记录后续版本的配置和节点身份。"""
     with session_scope(audit_session_factory) as session:
         with session.begin():
             user = User(
@@ -84,6 +86,17 @@ def test_binding_audit_names_config_and_node(audit_session_factory):
                 created_by=user_id,
             )
         )
+        session.flush()
+        binding.current_version = 2
+        session.add(
+            BindingVersion(
+                binding_id=binding.id,
+                version=2,
+                content="server { listen 443; };",
+                remark="修改配置",
+                created_by=user_id,
+            )
+        )
         session.commit()
         rows = session.scalars(
             select(AuditLog).where(
@@ -93,8 +106,10 @@ def test_binding_audit_names_config_and_node(audit_session_factory):
         entries = [(row.module, row.action, row.detail) for row in rows]
 
     binding_log = next(row for row in entries if row[0] == "配置绑定")
-    version_log = next(row for row in entries if row[0] == "绑定版本")
+    version_logs = [row for row in entries if row[0] == "绑定版本"]
     assert binding_log[1] == "创建配置绑定"
     assert binding_log[2] == "配置「grafana」绑定到节点「edge-proxy (192.0.2.101)」"
+    assert len(version_logs) == 1
+    version_log = version_logs[0]
     assert version_log[1] == "创建绑定版本"
-    assert version_log[2] == "配置「grafana」在节点「edge-proxy (192.0.2.101)」创建绑定版本 V1"
+    assert version_log[2] == "配置「grafana」在节点「edge-proxy (192.0.2.101)」创建绑定版本 V2"
