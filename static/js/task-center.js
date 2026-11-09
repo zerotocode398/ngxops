@@ -635,6 +635,7 @@
         try { fieldLabels = JSON.parse(labelsElement.textContent); } catch (error) {}
         try { logTargetMap = JSON.parse(logTargetsElement.textContent); } catch (error) {}
         var isHostScopedLogTask = Boolean(logHostFilter);
+        var followNewLogs = true;
         currentTaskStatus = detail.dataset.taskStatus || "";
         var initialDetail = detail.querySelector("[data-task-detail]");
         currentTaskDetail = initialDetail ? initialDetail.textContent : "";
@@ -680,17 +681,23 @@
         if (logHostFilter) {
             logHostFilter.addEventListener("change", function () {
                 applyLogHostFilter();
+                followNewLogs = true;
                 loadAllLogsForFilter();
             });
             applyLogHostFilter();
         }
+        logList.addEventListener("scroll", function () {
+            var distanceFromBottom =
+                logList.scrollHeight - logList.scrollTop - logList.clientHeight;
+            followNewLogs = distanceFromBottom <= 24;
+        });
         renderTaskResult(
             resultRoot,
             initialResult,
             isConfigSync
         );
         renderSummary(summaryRoot, initialResult && initialResult.summary);
-        if (isHostScopedLogTask) logList.scrollTop = logList.scrollHeight;
+        logList.scrollTop = logList.scrollHeight;
         var busy = false;
         if (loadMoreLogs) {
             loadMoreLogs.addEventListener("click", function () { poll(true); });
@@ -730,7 +737,7 @@
                 });
                 annotateTaskLogNodeIds(detail, logList);
                 if (logHostFilter) applyLogHostFilter();
-                if (isHostScopedLogTask && (payload.logs || []).length) {
+                if (followNewLogs && (payload.logs || []).length) {
                     logList.scrollTop = logList.scrollHeight;
                 }
                 cursor = Math.max(cursor, Number(payload.next_log_id) || 0);
