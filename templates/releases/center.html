@@ -4,35 +4,7 @@
 {% block page_title %}发布中心{% endblock %}
 
 {% block extra_head %}
-<style>
-    .release-status-label { padding: 5px 10px; border-radius: 4px; }
-    .release-status-label:not(.active) { background: #fff; border: 1px solid #ced4da; color: #495057; }
-    .release-status-label.active { color: #fff; }
-    .release-status-label.active.status-all { background: #6c757d; }
-    .release-status-label.active.status-pending { background: #0d6efd; }
-    .release-status-label.active.status-synced { background: #198754; }
-    .release-status-label.active.status-orphaned { background: #6c757d; }
-    .release-status-label.active.status-failed { background: #dc3545; }
-    .release-status-label.active.status-marked { background: #b02a37; }
-    .release-filter-heading { color: #495057; font-weight: 600; }
-    .release-node-row { cursor: pointer; }
-    .release-node-row:hover { background: #f5f8fa; }
-    .release-node-row .node-chevron { transition: transform .15s ease; }
-    .release-node-row [aria-expanded="true"] .node-chevron { transform: rotate(90deg); }
-    .release-bindings-row[hidden] { display: none !important; }
-    .release-bindings-panel { padding: 10px 14px 10px 42px; background: #f8f9fa; }
-    .release-bindings-table { min-width: 900px; table-layout: fixed; }
-    .release-bindings-table th:nth-child(1) { width: 38px !important; }
-    .release-bindings-table th:nth-child(2) { width: 132px; }
-    .release-bindings-table th:nth-child(4) { width: 104px; }
-    .release-bindings-table th:nth-child(5) { width: 90px; }
-    .release-bindings-table th:nth-child(6) { width: 176px !important; }
-    .release-bindings-table th:nth-child(7) { width: 64px !important; }
-    .release-bindings-table td:nth-child(2),
-    .release-bindings-table td:nth-child(3) { overflow-wrap: anywhere; }
-    .release-content-preview { max-height: 68vh; overflow: auto; white-space: pre; }
-    .release-binding-pagination { min-height: 36px; }
-</style>
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/release-center.css') }}?v=1">
 {% endblock %}
 
 {% block content %}
