@@ -274,20 +274,20 @@ def _probe_and_store(
                 extra={"ngxops_compact_log": True},
             )
             return
-        target["_ssh_error_types"] = []
+        target["_ssh_errors"] = []
         target["detect_retries"] = 0
         result = _probe_target(target, _MonitorContext(stop_event))
         _apply_probe_result(session_factory, target, result, update_nginx=True)
         if not result["ssh_success"]:
-            error_types = target["_ssh_error_types"]
-            if any("timeout" in error_type.lower() for error_type in error_types):
+            error_details = target["_ssh_errors"]
+            if any("timeout" in error.lower() for error in error_details):
                 failure_reason = "timeout"
             else:
                 failure_reason = result["message"] or "SSH 连接失败"
-            if error_types and failure_reason != "timeout":
+            if error_details and failure_reason != "timeout":
                 failure_reason = "{} ({})".format(
                     failure_reason,
-                    ", ".join(error_types),
+                    "; ".join(error_details),
                 )
         elif result["nginx_available"] is False:
             failure_reason = "未检测到 Nginx"

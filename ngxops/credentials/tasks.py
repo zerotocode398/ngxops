@@ -33,20 +33,44 @@ _DETECT_RETRIES_DEFAULT, _DETECT_RETRIES_MIN, _DETECT_RETRIES_MAX = (
 )
 
 
-def _diagnostic_error_type(exc: BaseException) -> str:
-    """提取异常类型及其底层连接错误类型，不保留异常原文。"""
-    causes = getattr(exc, "errors", None)
-    if isinstance(causes, dict):
-        cause_types = sorted(
-            {
-                type(cause).__name__
-                for cause in causes.values()
+def _diagnostic_error(
+    exc: BaseException,
+    sensitive_values: Tuple[str, ...],
+) -> str:
+    """提取异常及有限层级的底层原因，并隐藏凭证明文。"""
+    pending = [exc]
+    visited = set()
+    details = []
+    while pending and len(details) < 5:
+        current = pending.pop(0)
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        try:
+            message = str(current).strip()
+        except Exception:
+            message = ""
+        for sensitive_value in sensitive_values:
+            if sensitive_value:
+                message = message.replace(sensitive_value, "[REDACTED]")
+        message = " ".join(message.split())[:400]
+        detail = type(current).__name__
+        if message:
+            detail = "{}: {}".format(detail, message)
+        details.append(detail)
+
+        causes = getattr(current, "errors", None)
+        if isinstance(causes, dict):
+            pending.extend(
+                cause for cause in causes.values()
                 if isinstance(cause, BaseException)
-            }
+            )
+        pending.extend(
+            cause
+            for cause in (current.__cause__, current.__context__)
+            if isinstance(cause, BaseException)
         )
-        if cause_types:
-            return "{} ({})".format(type(exc).__name__, ", ".join(cause_types))
-    return type(exc).__name__
+    return " <- ".join(details)[:1200]
 
 
 def _load_private_key(value: str) -> paramiko.PKey:
@@ -71,7 +95,7 @@ def _connect_ssh(
     timeout: int = _SSH_TIMEOUT_DEFAULT,
     retries: int = _DETECT_RETRIES_DEFAULT,
     detailed_logging: bool = False,
-    diagnostic_error_types: Optional[List[str]] = None,
+    diagnostic_errors: Optional[List[str]] = None,
 ) -> Tuple[Optional[paramiko.SSHClient], str]:
     """在远程主机建立 SSH 连接并按调用方设置返回诊断日志。"""
     timeout = min(_SSH_TIMEOUT_MAX, max(_SSH_TIMEOUT_MIN, int(timeout)))
@@ -111,8 +135,10 @@ def _connect_ssh(
             return client, ""
         except paramiko.AuthenticationException as exc:
             client.close()
-            if diagnostic_error_types is not None:
-                diagnostic_error_types.append(_diagnostic_error_type(exc))
+            if diagnostic_errors is not None:
+                diagnostic_errors.append(
+                    _diagnostic_error(exc, (password, private_key))
+                )
             if detailed_logging:
                 context.append_log(
                     "SSH 认证失败：{}".format(str(exc).strip() or "凭证认证未通过"),
@@ -121,8 +147,10 @@ def _connect_ssh(
             return None, "SSH 认证失败"
         except Exception as exc:
             client.close()
-            if diagnostic_error_types is not None:
-                diagnostic_error_types.append(_diagnostic_error_type(exc))
+            if diagnostic_errors is not None:
+                diagnostic_errors.append(
+                    _diagnostic_error(exc, (password, private_key))
+                )
             if detailed_logging:
                 context.append_log(
                     "SSH 连接异常：{}: {}".format(

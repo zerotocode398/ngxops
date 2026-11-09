@@ -95,12 +95,12 @@ def _connect_target(
         target["ssh_timeout"],
         target["detect_retries"],
     )
-    diagnostic_error_types = target.get("_ssh_error_types")
-    if diagnostic_error_types is None:
+    diagnostic_errors = target.get("_ssh_errors")
+    if diagnostic_errors is None:
         return _connect_ssh(*connection_args)
     return _connect_ssh(
         *connection_args,
-        diagnostic_error_types=diagnostic_error_types,
+        diagnostic_errors=diagnostic_errors,
     )
 
 
