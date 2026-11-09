@@ -475,7 +475,7 @@ def test_release_node_rows_toggle_bindings_on_row_click(release_client):
     )
 
     assert page.status_code == 200, page.text
-    assert "/static/js/releases.js?v=8" in page.text
+    assert "/static/js/releases.js?v=9" in page.text
     assert '".release-node-row"' in script
     assert 'toggleNode(this.getAttribute("data-node-row"))' in script
     assert '"[data-node-select]"' in script

@@ -218,7 +218,8 @@ $(function () {
                                 })
                             );
                         } catch (error) {}
-                        window.location.reload();
+                        if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+                        else window.location.reload();
                         return;
                     }
                     nodeIds.forEach(refreshNodeDetail);
@@ -312,12 +313,16 @@ $(function () {
         );
     }
 
-    $(document).on("click", ".node-detail-open", function () {
+    $(document).off(".nodesPage");
+    $(document).on("click.nodesPage", ".node-detail-open", function () {
         openNodeDetail($(this).data("node-id"));
     });
-    $(document).on("click", ".node-probe", function () {
+    $(document).on("click.nodesPage", ".node-probe", function () {
         probeNodes([Number($(this).data("node-id"))]);
     });
+    document.addEventListener("ngxops:page-leaving", function cleanupNodeHandlers() {
+        $(document).off(".nodesPage");
+    }, { once: true });
     $(".node-bulk-probe").on("click", function () {
         var ids = selectedNodeIds();
         if (ids.length > batchMax) {

@@ -48,7 +48,7 @@
         </div>
     </div>
     <div class="card-body">
-        <form id="releaseFilterForm" method="get" action="/releases/center/" class="mb-3" autocomplete="off" data-query-submit-on-enter>
+        <form id="releaseFilterForm" method="get" action="/releases/center/" class="mb-3" autocomplete="off" data-query-submit-on-enter data-custom-submit>
             <div class="row g-2 align-items-center">
                 <div class="col-12 col-lg-5"><label class="visually-hidden" for="releaseSearch">搜索发布节点</label><input class="form-control form-control-sm" id="releaseSearch" name="search" value="{{ search }}" data-query-tags type="search" maxlength="200" placeholder="搜索主机名、IP、配置名或远程路径" aria-label="搜索主机名、IP、配置名或远程路径"></div>
                 <input type="hidden" name="per_page" id="releasePerPageValue" value="{{ pagination.per_page }}">
@@ -66,12 +66,12 @@
 
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3 binding-status-filters" aria-label="绑定状态筛选">
             <span class="small release-filter-heading">绑定状态：</span>
-            <a class="badge text-decoration-none release-status-label status-all{% if not sync_status %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='', page=1) }}" data-status="all">全部 {{ status_counts.total }}</a>
-            <a class="badge text-decoration-none release-status-label status-pending{% if sync_status == 'pending' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='pending', page=1) }}" data-status="pending"><i class="bi bi-pencil" aria-hidden="true"></i> 待推送 {{ status_counts.pending }}</a>
-            <a class="badge text-decoration-none release-status-label status-synced{% if sync_status == 'synced' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='synced', page=1) }}" data-status="synced"><i class="bi bi-check-circle" aria-hidden="true"></i> 已同步 {{ status_counts.synced }}</a>
-            <a class="badge text-decoration-none release-status-label status-orphaned{% if sync_status == 'orphaned' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='orphaned', page=1) }}" data-status="orphaned"><i class="bi bi-inbox" aria-hidden="true"></i> 远程删除 {{ status_counts.orphaned }}</a>
-            <a class="badge text-decoration-none release-status-label status-failed{% if sync_status == 'failed' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='failed', page=1) }}" data-status="failed"><i class="bi bi-x-circle" aria-hidden="true"></i> 失败 {{ status_counts.failed }}</a>
-            <a class="badge text-decoration-none release-status-label status-marked{% if sync_status == 'marked_deleted' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='marked_deleted', page=1) }}" data-status="marked_deleted"><i class="bi bi-trash" aria-hidden="true"></i> 标记删除 {{ status_counts.marked_deleted }}</a>
+            <a class="badge text-decoration-none release-status-label status-all{% if not sync_status %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='', page=1) }}" data-status="all" data-custom-nav>全部 {{ status_counts.total }}</a>
+            <a class="badge text-decoration-none release-status-label status-pending{% if sync_status == 'pending' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='pending', page=1) }}" data-status="pending" data-custom-nav><i class="bi bi-pencil" aria-hidden="true"></i> 待推送 {{ status_counts.pending }}</a>
+            <a class="badge text-decoration-none release-status-label status-synced{% if sync_status == 'synced' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='synced', page=1) }}" data-status="synced" data-custom-nav><i class="bi bi-check-circle" aria-hidden="true"></i> 已同步 {{ status_counts.synced }}</a>
+            <a class="badge text-decoration-none release-status-label status-orphaned{% if sync_status == 'orphaned' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='orphaned', page=1) }}" data-status="orphaned" data-custom-nav><i class="bi bi-inbox" aria-hidden="true"></i> 远程删除 {{ status_counts.orphaned }}</a>
+            <a class="badge text-decoration-none release-status-label status-failed{% if sync_status == 'failed' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='failed', page=1) }}" data-status="failed" data-custom-nav><i class="bi bi-x-circle" aria-hidden="true"></i> 失败 {{ status_counts.failed }}</a>
+            <a class="badge text-decoration-none release-status-label status-marked{% if sync_status == 'marked_deleted' %} active{% endif %}" href="{{ request.url.include_query_params(sync_status='marked_deleted', page=1) }}" data-status="marked_deleted" data-custom-nav><i class="bi bi-trash" aria-hidden="true"></i> 标记删除 {{ status_counts.marked_deleted }}</a>
             <span class="ms-auto small text-muted" id="releaseNodeLimit">最多选择 {{ max_node_count }} 个节点、{{ max_binding_count }} 个配置</span>
         </div>
 
@@ -84,7 +84,7 @@
         <div class="pagination-footer" id="releasePagination">
             <div class="pagination-summary" id="releasePaginationSummary">共 {{ pagination.total }} 条，第 {{ pagination.page }} / {{ pagination.pages }} 页</div>
             <div class="pagination-controls"{% if pagination.pages <= 1 %} style="display:none"{% endif %}><nav aria-label="发布节点分页导航" class="pagination-nav" id="releasePaginationNav"></nav></div>
-            <form method="get" action="/releases/center/" class="per-page-form" id="releasePerPageForm">
+            <form method="get" action="/releases/center/" class="per-page-form" id="releasePerPageForm" data-custom-submit>
                 <input type="hidden" name="search" value="{{ search }}">
                 <input type="hidden" name="sync_status" value="{{ sync_status }}">
                 <input type="hidden" name="nginx_available" value="{{ nginx_filter }}">
@@ -118,4 +118,4 @@
 <div id="releaseCenterState" hidden data-can-publish="{{ 'true' if can_publish else 'false' }}"></div>
 {% endblock %}
 
-{% block scripts %}<script src="{{ request.url_for('static', path='js/releases.js') }}?v=8"></script>{% endblock %}
+{% block scripts %}<script src="{{ request.url_for('static', path='js/releases.js') }}?v=9"></script>{% endblock %}

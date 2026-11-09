@@ -42,6 +42,11 @@
         }
     }
 
+    window.NGXOPS_CAPTURE_UPGRADE_VIEW = function (url) {
+        captureViewState(new URL(url, window.location.href));
+    };
+    window.NGXOPS_RESTORE_UPGRADE_VIEW = restoreViewState;
+
     /** 判断样式表是否为页面专属资源。 */
     function isPageStylesheet(link) {
         var href = link.getAttribute("href") || "";
@@ -146,6 +151,7 @@
             }
             captureViewState(new URL(window.location.href));
             restoreViewState(pageDocument, result.url);
+            document.dispatchEvent(new CustomEvent("ngxops:page-leaving"));
             if (!replacePageView(pageDocument)) {
                 window.location.assign(result.url.href);
                 return;

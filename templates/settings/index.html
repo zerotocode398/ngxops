@@ -9,7 +9,7 @@
         <div class="settings-nav-title">设置分组</div>
         {% for name in group_names %}
         <a class="settings-nav-item{% if name == active_group %} active{% endif %}"
-           href="/settings/?group={{ name|urlencode }}" data-settings-group="{{ name }}"{% if name == active_group %} aria-current="page"{% endif %}>
+           href="/settings/?group={{ name|urlencode }}" data-settings-group="{{ name }}" data-custom-nav{% if name == active_group %} aria-current="page"{% endif %}>
             <span>{{ name }}</span><span class="text-muted small">{{ groups[name]|length }}</span>
         </a>
         {% endfor %}
@@ -91,7 +91,13 @@
     function groupFromLocation() {
         return new URL(window.location.href).searchParams.get("group") || defaultGroup;
     }
-    $(document).on("click", "[data-settings-group]", function (event) {
+    $(document).off(".settingsPage");
+    $(window).off(".settingsPage");
+    document.addEventListener("ngxops:page-leaving", function cleanupSettingsHandlers() {
+        $(document).off(".settingsPage");
+        $(window).off(".settingsPage");
+    }, { once: true });
+    $(document).on("click.settingsPage", "[data-settings-group]", function (event) {
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         var group = this.getAttribute("data-settings-group");
@@ -99,7 +105,8 @@
         if (isDirty() && !window.confirm("当前分组有未保存的修改，仍要切换分组吗？")) return;
         if (activateGroup(group)) window.history.pushState({ settingsGroup: group }, "", this.href);
     });
-    window.addEventListener("popstate", function () {
+    $(window).on("popstate.settingsPage", function () {
+        if (!/^\/settings\/?$/.test(window.location.pathname)) return;
         var group = groupFromLocation();
         if (group === activeGroup) return;
         if (isDirty() && !window.confirm("当前分组有未保存的修改，仍要切换分组吗？")) {
@@ -108,7 +115,7 @@
         }
         activateGroup(group);
     });
-    $(document).on("click", "[data-save-settings]", function () {
+    $(document).on("click.settingsPage", "[data-save-settings]", function () {
         var button = this;
         if (button.disabled || button.getAttribute("data-saving") === "1") return;
         button.setAttribute("data-saving", "1");

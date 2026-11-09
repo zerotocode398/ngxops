@@ -544,7 +544,8 @@
                     if (!response.ok || !payload.success) {
                         throw new Error(payload.message || "取消失败");
                     }
-                    window.location.reload();
+                    if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+                    else window.location.reload();
                 } catch (error) {
                     button.disabled = false;
                     window.showAlert("取消失败", error.message || "取消请求失败");
@@ -557,7 +558,8 @@
         document.querySelectorAll(".task-center-row").forEach(function (row) {
             row.addEventListener("click", function (event) {
                 if (event.target.closest("a, button, select, input")) return;
-                window.location.href = row.getAttribute("data-detail-url");
+                if (window.NGXOPS_NAVIGATE) window.NGXOPS_NAVIGATE(row.getAttribute("data-detail-url"));
+                else window.location.href = row.getAttribute("data-detail-url");
             });
         });
     }
@@ -602,7 +604,10 @@
                         if (cancel) cancel.remove();
                     }
                 });
-                if (filteredOut) window.location.reload();
+                if (filteredOut) {
+                    if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+                    else window.location.reload();
+                }
             } catch (error) {
                 // 轮询失败时保留页面当前数据，下一轮继续尝试。
             } finally {

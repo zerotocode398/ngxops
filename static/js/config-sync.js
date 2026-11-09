@@ -103,10 +103,14 @@
         };
         try {
             window.sessionStorage.setItem(syncToastStorageKey, JSON.stringify(notice));
-            window.location.reload();
+            if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+            else window.location.reload();
         } catch (error) {
             showSyncTaskToast(notice, fallback);
-            window.setTimeout(function () { window.location.reload(); }, 3000);
+            window.setTimeout(function () {
+                if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+                else window.location.reload();
+            }, 3000);
         }
     }
 

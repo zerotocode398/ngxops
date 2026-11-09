@@ -177,10 +177,14 @@ $(function () {
         } catch (error) {
         }
         if (stored) {
-            window.location.reload();
+            if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+            else window.location.reload();
         } else {
             window.showToast(message, type);
-            window.setTimeout(function () { window.location.reload(); }, 3200);
+            window.setTimeout(function () {
+                if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+                else window.location.reload();
+            }, 3200);
         }
     }
     $selectAll.on("change", function () {
@@ -260,7 +264,8 @@ $(function () {
         $.ajax({url: "/api/nodes/import", method: "POST", data: new FormData(form), processData: false, contentType: false})
             .done(function (result) {
                 window.showToast(result.message, "success");
-                window.location.reload();
+                if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+                else window.location.reload();
             })
             .fail(function (xhr) {
                 if (requestId !== nodeImportRequestId) return;
@@ -276,5 +281,5 @@ $(function () {
     });
 });
 </script>
-<script src="{{ request.url_for('static', path='js/nodes.js') }}?v=4"></script>
+<script src="{{ request.url_for('static', path='js/nodes.js') }}?v=5"></script>
 {% endblock %}

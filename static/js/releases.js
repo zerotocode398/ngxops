@@ -661,6 +661,12 @@
     }
 
     $(function () {
+        $(document).off(".releasePage");
+        $(window).off(".releasePage");
+        document.addEventListener("ngxops:page-leaving", function cleanupReleaseHandlers() {
+            $(document).off(".releasePage");
+            $(window).off(".releasePage");
+        }, { once: true });
         readExpanded().forEach(function (id) {
             state.expanded[String(id)] = true;
         });
@@ -681,11 +687,11 @@
             state.pageSize = Number($("#releasePageSize").val()) || 10;
             loadNodes(1);
         });
-        $(document).on("click", "[data-release-page]", function (event) {
+        $(document).on("click.releasePage", "[data-release-page]", function (event) {
             event.preventDefault();
             loadNodes(Number(this.getAttribute("data-release-page")) || 1);
         });
-        $(document).on("click", ".release-status-label", function (event) {
+        $(document).on("click.releasePage", ".release-status-label", function (event) {
             event.preventDefault();
             state.syncStatus = this.getAttribute("data-status") === "all" ? "" : this.getAttribute("data-status");
             $("#releaseSyncStatus").val(state.syncStatus);
@@ -693,28 +699,30 @@
             $(this).addClass("active");
             loadNodes(1);
         });
-        $(window).on("popstate", function () {
-            window.location.reload();
+        $(window).on("popstate.releasePage", function () {
+            if (!/^\/releases\/center(?:\/|$)/.test(window.location.pathname)) return;
+            if (window.NGXOPS_REFRESH_PAGE) window.NGXOPS_REFRESH_PAGE();
+            else window.location.reload();
         });
-        $(document).on("click", "[data-node-toggle]", function () {
+        $(document).on("click.releasePage", "[data-node-toggle]", function () {
             toggleNode(this.getAttribute("data-node-toggle"));
         });
-        $(document).on("click", ".release-node-row", function (event) {
+        $(document).on("click.releasePage", ".release-node-row", function (event) {
             if ($(event.target).closest("input, button, select, a, label").length) {
                 return;
             }
             toggleNode(this.getAttribute("data-node-row"));
         });
-        $(document).on("change", "[data-node-select]", function () {
+        $(document).on("change.releasePage", "[data-node-select]", function () {
             selectAllForNode(this.getAttribute("data-node-select"), this.checked);
         });
-        $(document).on("change", "[data-binding-select]", function () {
+        $(document).on("change.releasePage", "[data-binding-select]", function () {
             var selected = this.checked;
             if (!setBindingSelected(this.getAttribute("data-binding-select"), this.getAttribute("data-node-id"), selected)) {
                 this.checked = !selected;
             }
         });
-        $(document).on("click", "[data-binding-row]", function (event) {
+        $(document).on("click.releasePage", "[data-binding-row]", function (event) {
             if ($(event.target).closest("input, select, button, a").length) {
                 return;
             }
@@ -723,7 +731,7 @@
                 $checkbox.prop("checked", !$checkbox.prop("checked")).trigger("change");
             }
         });
-        $(document).on("change", "[data-binding-version]", function () {
+        $(document).on("change.releasePage", "[data-binding-version]", function () {
             var bindingId = this.getAttribute("data-binding-version");
             var nodeId = $(this).closest("[data-binding-rows]").attr("data-binding-rows");
             if (state.selection[String(bindingId)]) {
@@ -733,12 +741,12 @@
             $("[data-binding-row='" + bindingId + "'] [data-version-preview]").attr("data-version-preview", version ? version.getAttribute("data-version-id") : "");
             updateSelectionSummary();
         });
-        $(document).on("change", "[data-binding-page-size]", function () {
+        $(document).on("change.releasePage", "[data-binding-page-size]", function () {
             var nodeId = this.getAttribute("data-binding-page-size");
             state.bindingPageSizeByNode[nodeId] = Number(this.value) || 10;
             loadBindingsPage(nodeId, 1, state.bindingPageSizeByNode[nodeId]);
         });
-        $(document).on("click", "[data-binding-page-action]", function () {
+        $(document).on("click.releasePage", "[data-binding-page-action]", function () {
             var nodeId = this.getAttribute("data-node-id");
             var pageInfo = state.bindingPageInfoByNode[nodeId];
             if (!pageInfo || this.disabled) return;
@@ -750,7 +758,7 @@
             if (action === "last") page = pageInfo.total_pages;
             loadBindingsPage(nodeId, page);
         });
-        $(document).on("click", "[data-version-preview]", function () {
+        $(document).on("click.releasePage", "[data-version-preview]", function () {
             var bindingRow = $(this).closest("tr");
             var configName = bindingRow.find("td:nth-child(2)").text();
             previewVersion(this.getAttribute("data-version-preview"), configName);

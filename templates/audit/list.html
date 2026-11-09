@@ -161,7 +161,7 @@ $(function () {
     }
 
     updateAuditDetailToggles();
-    $(window).on("resize", updateAuditDetailToggles);
+    $(window).off("resize.auditPage").on("resize.auditPage", updateAuditDetailToggles);
 
     $(timeRange).on("change", function () {
         var custom = this.value === "custom";
@@ -182,7 +182,7 @@ $(function () {
         }
         form.requestSubmit();
     });
-    $(document).on("click", ".audit-detail-toggle", function () {
+    $(document).off("click.auditPage", ".audit-detail-toggle").on("click.auditPage", ".audit-detail-toggle", function () {
         var $button = $(this);
         var $cell = $button.closest("td");
         var expanded = $button.attr("aria-expanded") === "true";
@@ -194,6 +194,10 @@ $(function () {
         $button.find("i").toggleClass("bi-chevron-down bi-chevron-up");
         if (expanded) updateAuditDetailToggle($cell);
     });
+    document.addEventListener("ngxops:page-leaving", function cleanupAuditHandlers() {
+        $(window).off("resize.auditPage");
+        $(document).off("click.auditPage", ".audit-detail-toggle");
+    }, { once: true });
 });
 </script>
 {% endblock %}

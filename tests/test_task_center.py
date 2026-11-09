@@ -233,7 +233,7 @@ def test_uninstall_task_detail_hides_legacy_summary_and_config_and_links_history
         'rel="noopener"><code class="task-batch-code">UN-261027-0301</code></a>'
     ) in detail.text
     assert 'data-is-uninstall-type="true"' in detail.text
-    assert "task-center.js?v=12" in detail.text
+    assert "task-center.js?v=14" in detail.text
 
 
 def test_uninstall_batch_is_not_a_link_without_uninstall_read_permission(
