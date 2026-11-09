@@ -205,6 +205,17 @@
         navigate(destination, null, pushHistory !== false);
     };
     window.NGXOPS_REFRESH_PAGE = function () {
+        var activeModal = document.querySelector(".modal.show");
+        if (activeModal && window.bootstrap && window.bootstrap.Modal) {
+            if (activeModal.dataset.refreshPending === "true") return;
+            activeModal.dataset.refreshPending = "true";
+            activeModal.addEventListener("hidden.bs.modal", function () {
+                delete activeModal.dataset.refreshPending;
+                window.NGXOPS_NAVIGATE(window.location.href, false);
+            }, { once: true });
+            window.bootstrap.Modal.getOrCreateInstance(activeModal).hide();
+            return;
+        }
         window.NGXOPS_NAVIGATE(window.location.href, false);
     };
 
