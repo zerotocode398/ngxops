@@ -185,7 +185,11 @@ def _backup_remote_file(
         "if mkdir -p -- {parent} && cp -p -- {source} {backup}; then "
         "printf '%s' '__NGXOPS_BACKED_UP__'; else exit 4; fi; "
         "elif [ ! -e {source} ] && [ ! -L {source} ]; then "
-        "printf '%s' '__NGXOPS_MISSING__'; else exit 3; fi"
+        "printf '%s' '__NGXOPS_MISSING__'; else "
+        "printf '%s\\n' '__NGXOPS_INVALID_TYPE__'; "
+        "ls -ld -- {source} 2>&1 || true; "
+        "stat -c 'type=%F mode=%a owner=%U group=%G path=%n' -- {source} 2>&1 || true; "
+        "exit 3; fi"
     ).format(source=source_q, parent=parent_q, backup=backup_q)
     try:
         status, output = _remote_step(
@@ -198,6 +202,10 @@ def _backup_remote_file(
     except RemoteCommandError:
         return None, "远程备份检查失败（诊断见任务日志）"
     if status != 0:
+        if status == 3:
+            return None, "远程目标存在但不是可备份的普通文件{}".format(
+                _format_remote_detail(output)
+            )
         return None, "远程备份失败{}".format(_format_remote_detail(output))
     if output == "__NGXOPS_BACKED_UP__":
         source_md5, source_error = _remote_md5(
