@@ -96,11 +96,13 @@ def _connect_target(
         target["detect_retries"],
     )
     diagnostic_errors = target.get("_ssh_errors")
-    if diagnostic_errors is None:
+    diagnostic_tracebacks = target.get("_ssh_tracebacks")
+    if diagnostic_errors is None and diagnostic_tracebacks is None:
         return _connect_ssh(*connection_args)
     return _connect_ssh(
         *connection_args,
         diagnostic_errors=diagnostic_errors,
+        diagnostic_tracebacks=diagnostic_tracebacks,
     )
 
 

@@ -35,6 +35,7 @@ from ngxops.ui import render_page
 router = APIRouter(prefix="/configs", tags=["configs"])
 PAGE_SIZES = (10, 25, 50, 100)
 DEFAULT_PAGE_SIZE = 25
+DEFAULT_NODE_CONFIG_PAGE_SIZE = 10
 CONFIG_PAGE_SIZES = (10, 20, 50, 100)
 DEFAULT_CONFIG_PAGE_SIZE = 10
 CONFIG_FILTER_STATUSES = (
@@ -104,9 +105,10 @@ def _pagination(
     total: int,
     requested_page: int,
     requested_size: int,
+    default_size: int = DEFAULT_PAGE_SIZE,
 ) -> Tuple[int, int, dict]:
     """规范分页参数并构造公共分页组件使用的数据。"""
-    size = requested_size if requested_size in PAGE_SIZES else DEFAULT_PAGE_SIZE
+    size = requested_size if requested_size in PAGE_SIZES else default_size
     pages = max(1, int(math.ceil(total / float(size))))
     page = min(max(1, requested_page), pages)
     return page, size, {
@@ -455,7 +457,7 @@ def node_configs(
     request: Request,
     node_id: int,
     page: int = Query(1, ge=1),
-    per_page: int = Query(DEFAULT_PAGE_SIZE),
+    per_page: int = Query(DEFAULT_NODE_CONFIG_PAGE_SIZE),
     user: User = Depends(require_permission("configs", "read")),
     db_session: Session = Depends(get_session),
 ) -> Response:
@@ -494,7 +496,13 @@ def node_configs(
         query = query.where(ConfigBinding.sync_status.in_(statuses))
 
     total = db_session.scalar(select(func.count()).select_from(query.subquery())) or 0
-    page, size, pagination = _pagination(request, total, page, per_page)
+    page, size, pagination = _pagination(
+        request,
+        total,
+        page,
+        per_page,
+        default_size=DEFAULT_NODE_CONFIG_PAGE_SIZE,
+    )
     bindings = db_session.scalars(
         query.options(contains_eager(ConfigBinding.config))
         .order_by(Config.name.asc(), ConfigBinding.id.asc())

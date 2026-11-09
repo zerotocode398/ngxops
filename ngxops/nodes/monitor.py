@@ -275,10 +275,24 @@ def _probe_and_store(
             )
             return
         target["_ssh_errors"] = []
+        target["_ssh_tracebacks"] = []
         target["detect_retries"] = 0
         result = _probe_target(target, _MonitorContext(stop_event))
         _apply_probe_result(session_factory, target, result, update_nginx=True)
         if not result["ssh_success"]:
+            for attempt, traceback_text in enumerate(
+                target["_ssh_tracebacks"],
+                start=1,
+            ):
+                logger.warning(
+                    "SSH connection exception traceback hostname=%r ip=%s "
+                    "attempt=%d\n%s",
+                    target["hostname"],
+                    target["ip"],
+                    attempt,
+                    traceback_text,
+                    extra={"ngxops_compact_log": True},
+                )
             error_details = target["_ssh_errors"]
             if any("timeout" in error.lower() for error in error_details):
                 failure_reason = "timeout"

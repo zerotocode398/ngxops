@@ -3,6 +3,7 @@
 import re
 import shlex
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from io import StringIO
@@ -73,6 +74,20 @@ def _diagnostic_error(
     return " <- ".join(details)[:1200]
 
 
+def _diagnostic_traceback(
+    exc: BaseException,
+    sensitive_values: Tuple[str, ...],
+) -> str:
+    """格式化完整异常堆栈并遮蔽凭证明文。"""
+    detail = "".join(
+        traceback.format_exception(type(exc), exc, exc.__traceback__)
+    )
+    for sensitive_value in sensitive_values:
+        if sensitive_value:
+            detail = detail.replace(sensitive_value, "[REDACTED]")
+    return detail.rstrip()
+
+
 def _load_private_key(value: str) -> paramiko.PKey:
     """将已解密的私钥文本解析为 Paramiko 密钥对象。"""
     last_error = None
@@ -96,6 +111,7 @@ def _connect_ssh(
     retries: int = _DETECT_RETRIES_DEFAULT,
     detailed_logging: bool = False,
     diagnostic_errors: Optional[List[str]] = None,
+    diagnostic_tracebacks: Optional[List[str]] = None,
 ) -> Tuple[Optional[paramiko.SSHClient], str]:
     """在远程主机建立 SSH 连接并按调用方设置返回诊断日志。"""
     timeout = min(_SSH_TIMEOUT_MAX, max(_SSH_TIMEOUT_MIN, int(timeout)))
@@ -139,6 +155,10 @@ def _connect_ssh(
                 diagnostic_errors.append(
                     _diagnostic_error(exc, (password, private_key))
                 )
+            if diagnostic_tracebacks is not None:
+                diagnostic_tracebacks.append(
+                    _diagnostic_traceback(exc, (password, private_key))
+                )
             if detailed_logging:
                 context.append_log(
                     "SSH 认证失败：{}".format(str(exc).strip() or "凭证认证未通过"),
@@ -150,6 +170,10 @@ def _connect_ssh(
             if diagnostic_errors is not None:
                 diagnostic_errors.append(
                     _diagnostic_error(exc, (password, private_key))
+                )
+            if diagnostic_tracebacks is not None:
+                diagnostic_tracebacks.append(
+                    _diagnostic_traceback(exc, (password, private_key))
                 )
             if detailed_logging:
                 context.append_log(
