@@ -93,10 +93,7 @@ def stop_service(data_dir: Path, timeout: int = STOP_TIMEOUT_SECONDS) -> bool:
 
     stopped = False
     try:
-        if os.name == "nt":
-            process.send_signal(signal.CTRL_BREAK_EVENT)
-        else:
-            process.terminate()
+        _signal_managed_process(process)
         process.wait(timeout=max(1, timeout))
         stopped = True
     except psutil.TimeoutExpired:
@@ -104,10 +101,10 @@ def stop_service(data_dir: Path, timeout: int = STOP_TIMEOUT_SECONDS) -> bool:
             "service_action action=stop result=timeout pid=%s; forcing termination",
             process.pid,
         )
-        process.kill()
+        _signal_managed_process(process, force=True)
         process.wait(timeout=5)
         stopped = True
-    except psutil.NoSuchProcess:
+    except (psutil.NoSuchProcess, ProcessLookupError):
         stopped = True
     except psutil.AccessDenied as exc:
         raise RuntimeError(
@@ -338,16 +335,43 @@ def _health_host(host: str) -> str:
     return host
 
 
+def _signal_managed_process(process: psutil.Process, force: bool = False) -> None:
+    """向受管服务独占的进程组发送优雅停止或强制终止信号。"""
+    if os.name == "nt":
+        if not force:
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+            return
+        try:
+            children = process.children(recursive=True)
+        except psutil.NoSuchProcess:
+            children = []
+        for child in reversed(children):
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+        process.kill()
+        return
+
+    try:
+        os.killpg(
+            process.pid,
+            signal.SIGKILL if force else signal.SIGTERM,
+        )
+    except ProcessLookupError:
+        pass
+
+
 def _terminate_recorded_process(record: Dict[str, Any], pid_path: Path) -> None:
     """清理健康检查失败的受管服务进程。"""
     process = _get_matching_process(record)
     if process is not None:
         try:
-            process.terminate()
+            _signal_managed_process(process)
             process.wait(timeout=5)
         except psutil.TimeoutExpired:
-            process.kill()
+            _signal_managed_process(process, force=True)
             process.wait(timeout=5)
-        except psutil.NoSuchProcess:
+        except (psutil.NoSuchProcess, ProcessLookupError):
             pass
     _remove_record(pid_path, record.get("token"))
